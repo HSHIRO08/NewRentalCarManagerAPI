@@ -1,0 +1,13 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+C:\Users\mainh\source\repos\NewRentalCarManagerAPI\Models\AppDbContext.cs(62,10): warning CS1030: #warning: 'To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.' [C:\Users\mainh\source\repos\NewRentalCarManagerAPI\NewRentalCarManagerAPI.csproj]
+C:\Users\mainh\source\repos\NewRentalCarManagerAPI\Program.cs(24,29): error CS0246: The type or namespace name 'NpgsqlDataSourceBuilder' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\mainh\source\repos\NewRentalCarManagerAPI\NewRentalCarManagerAPI.csproj]
+
+Build FAILED.
+
+C:\Users\mainh\source\repos\NewRentalCarManagerAPI\Models\AppDbContext.cs(62,10): warning CS1030: #warning: 'To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.' [C:\Users\mainh\source\repos\NewRentalCarManagerAPI\NewRentalCarManagerAPI.csproj]
+C:\Users\mainh\source\repos\NewRentalCarManagerAPI\Program.cs(24,29): error CS0246: The type or namespace name 'NpgsqlDataSourceBuilder' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\mainh\source\repos\NewRentalCarManagerAPI\NewRentalCarManagerAPI.csproj]
+    1 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:02.71
