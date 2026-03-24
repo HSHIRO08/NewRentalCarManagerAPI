@@ -61,6 +61,7 @@ public class AuthService : IAuthService
             FullName = dto.FullName,
             Email = dto.Email,
             RoleId = defaultRole.Id,
+            Status = UserStatus.Active,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

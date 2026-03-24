@@ -99,7 +99,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// ── CORS ──
 builder.Services.AddCors(opt =>
     opt.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
@@ -134,98 +133,10 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// ── Seed default roles & permissions ──
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // Seed roles
-    string[] defaultRoles = ["admin", "owner", "renter"];
-    foreach (var roleName in defaultRoles)
-    {
-        if (!db.Roles.Any(r => r.Name == roleName))
-        {
-            db.Roles.Add(new NewRentalCarManagerAPI.Models.Role
-            {
-                Id = Guid.NewGuid(),
-                Name = roleName,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
-    }
-    db.SaveChanges();
-
-    // Seed permissions
-    string[] resources = ["users", "cars", "bookings", "promotions", "reviews",
-                          "penalties", "damage_reports", "transactions", "owner_payouts",
-                          "car_brands", "car_models", "locations", "car_pricing"];
-    string[] actions   = ["read", "create", "update", "delete"];
-
-    foreach (var resource in resources)
-    foreach (var action in actions)
-    {
-        if (!db.Permissions.Any(p => p.Resource == resource && p.Action == action))
-        {
-            db.Permissions.Add(new NewRentalCarManagerAPI.Models.Permission
-            {
-                Id = Guid.NewGuid(),
-                Resource = resource,
-                Action = action
-            });
-        }
-    }
-    db.SaveChanges();
-
-    // Grant permissions to roles
-    var adminRole = db.Roles.Include(r => r.Permissions).First(r => r.Name == "admin");
-    var ownerRole = db.Roles.Include(r => r.Permissions).First(r => r.Name == "owner");
-    var renterRole = db.Roles.Include(r => r.Permissions).First(r => r.Name == "renter");
-    var allPermissions = db.Permissions.ToList();
-
-    // Admin has all permissions
-    foreach (var perm in allPermissions)
-    {
-        if (!adminRole.Permissions.Any(p => p.Id == perm.Id))
-            adminRole.Permissions.Add(perm);
-    }
-
-    // Owner permissions: read & create/update/delete own cars, bookings, reviews, etc.
-    var ownerReadResources = new[] { "cars", "bookings", "reviews", "car_pricing", "car_brands", "car_models", "locations" };
-    var ownerManageResources = new[] { "cars", "bookings", "reviews", "owner_payouts" };
-
-    foreach (var perm in allPermissions.Where(p => ownerReadResources.Contains(p.Resource) && p.Action == "read"))
-    {
-        if (!ownerRole.Permissions.Any(p => p.Id == perm.Id))
-            ownerRole.Permissions.Add(perm);
-    }
-    foreach (var perm in allPermissions.Where(p => ownerManageResources.Contains(p.Resource) && new[] { "create", "update", "delete" }.Contains(p.Action)))
-    {
-        if (!ownerRole.Permissions.Any(p => p.Id == perm.Id))
-            ownerRole.Permissions.Add(perm);
-    }
-
-    // Renter permissions: read bookings & reviews, create/update/delete own bookings
-    var renterReadResources = new[] { "bookings", "reviews", "cars", "car_pricing", "locations" };
-    foreach (var perm in allPermissions.Where(p => renterReadResources.Contains(p.Resource) && p.Action == "read"))
-    {
-        if (!renterRole.Permissions.Any(p => p.Id == perm.Id))
-            renterRole.Permissions.Add(perm);
-    }
-    foreach (var perm in allPermissions.Where(p => p.Resource == "bookings" && new[] { "create", "update", "delete" }.Contains(p.Action)))
-    {
-        if (!renterRole.Permissions.Any(p => p.Id == perm.Id))
-            renterRole.Permissions.Add(perm);
-    }
-    foreach (var perm in allPermissions.Where(p => p.Resource == "reviews" && new[] { "create" }.Contains(p.Action)))
-    {
-        if (!renterRole.Permissions.Any(p => p.Id == perm.Id))
-            renterRole.Permissions.Add(perm);
-    }
-
-    db.SaveChanges();
-}
+app.SeedDefaultRolesAndPermissions();
 
 // ── Middleware Pipeline ──
+app.UseCors("AllowAll");
 app.UseMiddleware<ExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -234,10 +145,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<UnitOfWorkCommitMiddleware>();
 app.MapControllers();
 
 app.Run();

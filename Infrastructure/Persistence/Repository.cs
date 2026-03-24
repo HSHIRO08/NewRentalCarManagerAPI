@@ -23,7 +23,5 @@ public class Repository<T> : IRepository<T> where T : class
 
     public async Task AddAsync(T entity) => await _dbSet.AddAsync(entity);
 
-    public void Update(T entity) => _dbSet.Update(entity);
-
     public void Remove(T entity) => _dbSet.Remove(entity);
 }
