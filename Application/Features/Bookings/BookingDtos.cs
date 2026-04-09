@@ -26,6 +26,14 @@ public class BookingDto
     public string? Note { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    
+    // Frontend-friendly aliases
+    public string Status { get; set; } = null!;
+    public string PaymentStatus { get; set; } = "Pending";
+    public string EmailStatus { get; set; } = "Pending";
+    public string StartDate => RentalStart.ToString("yyyy-MM-dd");
+    public string EndDate => RentalEnd.ToString("yyyy-MM-dd");
+    public int TotalPrice => TotalPriceVnd;
 }
 public class CreateBookingDto
 {
@@ -40,8 +48,16 @@ public class CreateBookingDto
     public int DepositVnd { get; set; }
     public string? Note { get; set; }
 }
+public class QuickCreateBookingDto
+{
+    public Guid CarId { get; set; }
+    public string StartDate { get; set; } = null!;
+    public string EndDate { get; set; } = null!;
+    public string? Note { get; set; }
+}
 public class UpdateBookingDto
 {
+    public string? Status { get; set; }
     public DateTime? ActualReturnAt { get; set; }
     public string? CancelReason { get; set; }
     public string? Note { get; set; }

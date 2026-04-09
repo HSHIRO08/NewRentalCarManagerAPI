@@ -64,6 +64,7 @@ public class UserService : IUserService
     {
         Id = e.Id, Phone = e.Phone, Email = e.Email, FullName = e.FullName,
         AvatarUrl = e.AvatarUrl, RoleId = e.RoleId, RoleName = e.Role.Name,
+        Status = e.Status.ToString(),
         ReferralCode = e.ReferralCode, ReferredById = e.ReferredById,
         CreatedAt = e.CreatedAt, UpdatedAt = e.UpdatedAt
     };

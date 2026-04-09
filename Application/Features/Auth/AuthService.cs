@@ -66,8 +66,10 @@ public class AuthService : IAuthService
             UpdatedAt = DateTime.UtcNow
         };
         await _uow.Users.AddAsync(user);
+        await _uow.SaveChangesAsync();
 
-        user = await _uow.Users.Query().Include(u => u.Role).FirstAsync(u => u.Id == user.Id);
+        user = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == user.Id)
+            ?? throw new InvalidOperationException("Could not load registered user");
         return await GenerateTokensAsync(user);
     }
 

@@ -9,6 +9,7 @@ public class UserDto
     public string? AvatarUrl { get; set; }
     public Guid RoleId { get; set; }
     public string RoleName { get; set; } = null!;
+    public string Status { get; set; } = null!;
     public string? ReferralCode { get; set; }
     public Guid? ReferredById { get; set; }
     public DateTime CreatedAt { get; set; }

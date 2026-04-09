@@ -91,6 +91,7 @@ public class DamageReportService : IDamageReportService
     private IQueryable<DamageReport> BaseQuery() => _uow.DamageReports.Query()
         .Include(d => d.ReportedByNavigation);
 
+
     public async Task<IEnumerable<DamageReportDto>> GetByBookingAsync(Guid bookingId)
     {
         var items = await BaseQuery().Where(d => d.BookingId == bookingId).ToListAsync();

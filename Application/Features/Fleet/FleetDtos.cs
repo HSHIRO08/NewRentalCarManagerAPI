@@ -94,6 +94,13 @@ public class CarDto
     public bool HasIotDevice { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    
+    // UI Specific Fields
+    public int PricePerDay { get; set; }
+    public short Seats { get; set; }
+    public string Transmission { get; set; } = null!;
+    public string Status { get; set; } = null!;
+    public string Location { get; set; } = null!;
 }
 public class CreateCarDto
 {

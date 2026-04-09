@@ -13,6 +13,17 @@ public class UsersController : ControllerBase
     private readonly IUserService _service;
     public UsersController(IUserService service) => _service = service;
 
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMe()
+    {
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(ApiResult<UserDto>.Fail("Invalid user ID"));
+        var r = await _service.GetByIdAsync(userId);
+        return r is null ? NotFound(ApiResult<UserDto>.Fail("User not found")) : Ok(ApiResult<UserDto>.Ok(r));
+    }
+
     [Authorize(Roles = "admin")]
     [HttpGet]
     public async Task<IActionResult> GetAll()

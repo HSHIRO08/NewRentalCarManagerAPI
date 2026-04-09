@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewRentalCarManagerAPI.Application.Features.Bookings;
@@ -16,6 +17,17 @@ public class BookingsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
         => Ok(ApiResult<IEnumerable<BookingDto>>.Ok(await _service.GetAllAsync()));
+
+    [HttpGet("mine")]
+    public async Task<IActionResult> GetMine()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var renterId))
+            return Unauthorized(ApiResult<IEnumerable<BookingDto>>.Fail("Cannot identify user"));
+
+        return Ok(ApiResult<IEnumerable<BookingDto>>.Ok(await _service.GetByRenterAsync(renterId)));
+    }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
@@ -39,6 +51,18 @@ public class BookingsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = r.Id }, ApiResult<BookingDto>.Ok(r));
     }
 
+    [HttpPost("quick")]
+    public async Task<IActionResult> QuickCreate(QuickCreateBookingDto dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var renterId))
+            return Unauthorized(ApiResult<BookingDto>.Fail("Cannot identify user"));
+
+        var r = await _service.QuickCreateAsync(renterId, dto);
+        return CreatedAtAction(nameof(GetById), new { id = r.Id }, ApiResult<BookingDto>.Ok(r));
+    }
+
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdateBookingDto dto)
     {
@@ -49,4 +73,16 @@ public class BookingsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
         => await _service.DeleteAsync(id) ? Ok(ApiResult<bool>.Ok(true)) : NotFound(ApiResult<bool>.Fail("Not found"));
+
+    [HttpPost("{id:guid}/pay")]
+    public async Task<IActionResult> PayNow(Guid id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var payerId))
+            return Unauthorized(ApiResult<BookingDto>.Fail("Cannot identify user"));
+
+        var r = await _service.PayBookingAsync(id, payerId);
+        return r is null ? NotFound(ApiResult<BookingDto>.Fail("Booking not found")) : Ok(ApiResult<BookingDto>.Ok(r));
+    }
 }

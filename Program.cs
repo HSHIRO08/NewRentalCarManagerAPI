@@ -55,6 +55,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 builder.Services.AddSingleton<ISlugService, SlugService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
 // ── Authorization ──
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

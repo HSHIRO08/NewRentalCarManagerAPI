@@ -222,7 +222,8 @@ public class CarService : ICarService
     private IQueryable<Car> FullQuery() => _uow.Cars.Query()
         .Include(c => c.Owner)
         .Include(c => c.Model).ThenInclude(m => m.Brand)
-        .Include(c => c.Location);
+        .Include(c => c.Location)
+        .Include(c => c.CarPricings);
 
     public async Task<IEnumerable<CarDto>> GetAllAsync()
     {
@@ -246,14 +247,22 @@ public class CarService : ICarService
     {
         var e = new Car
         {
-            OwnerId = dto.OwnerId, ModelId = dto.ModelId, LocationId = dto.LocationId,
-            LicensePlate = dto.LicensePlate, ManufactureYear = dto.ManufactureYear,
-            Color = dto.Color, MileageKm = dto.MileageKm, Description = dto.Description,
-            ImageUrls = dto.ImageUrls, Features = dto.Features,
-            HasIotDevice = dto.HasIotDevice, IotDeviceId = dto.IotDeviceId,
-            CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+            OwnerId = dto.OwnerId,
+            ModelId = dto.ModelId,
+            LocationId = dto.LocationId,
+            LicensePlate = dto.LicensePlate,
+            ManufactureYear = dto.ManufactureYear,
+            Color = dto.Color,
+            MileageKm = dto.MileageKm,
+            Description = dto.Description,
+            ImageUrls = dto.ImageUrls,
+            Features = dto.Features,
+            HasIotDevice = dto.HasIotDevice,
+            IotDeviceId = dto.IotDeviceId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
-        await _uow.Cars.AddAsync(e);
+        
         return (await GetByIdAsync(e.Id))!;
     }
 
@@ -279,14 +288,19 @@ public class CarService : ICarService
 
     private static CarDto MapToDto(Car e) => new()
     {
-        Id = e.Id, OwnerId = e.OwnerId, OwnerName = e.Owner.FullName,
-        ModelId = e.ModelId, ModelName = e.Model.Name, BrandName = e.Model.Brand.Name,
+        Id = e.Id, OwnerId = e.OwnerId, OwnerName = e.Owner?.FullName ?? "",
+        ModelId = e.ModelId, ModelName = e.Model?.Name ?? "", BrandName = e.Model?.Brand?.Name ?? "",
         LocationId = e.LocationId, LicensePlate = e.LicensePlate,
         ManufactureYear = e.ManufactureYear, Color = e.Color,
         MileageKm = e.MileageKm, Description = e.Description,
         ImageUrls = e.ImageUrls, Features = e.Features,
         HasIotDevice = e.HasIotDevice,
-        CreatedAt = e.CreatedAt, UpdatedAt = e.UpdatedAt
+        CreatedAt = e.CreatedAt, UpdatedAt = e.UpdatedAt,
+        PricePerDay = e.CarPricings?.FirstOrDefault(p => p.IsActive)?.PriceVnd ?? 1000000,
+        Seats = e.Model?.SeatCount ?? 4,
+        Transmission = e.TransmissionType.ToString(),
+        Status = e.Status.ToString(),
+        Location = e.Location?.City ?? ""
     };
 }
 
