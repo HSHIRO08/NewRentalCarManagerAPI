@@ -56,6 +56,9 @@ builder.Services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 builder.Services.AddSingleton<ISlugService, SlugService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddSingleton<BookingEmailBackgroundService>();
+builder.Services.AddSingleton<IBookingEmailQueue>(sp => sp.GetRequiredService<BookingEmailBackgroundService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<BookingEmailBackgroundService>());
 
 // ── Authorization ──
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
