@@ -61,4 +61,6 @@ public partial class User
     public virtual Role Role { get; set; } = null!;
 
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
+
+    public virtual ICollection<NewsArticle> NewsArticles { get; set; } = new List<NewsArticle>();
 }

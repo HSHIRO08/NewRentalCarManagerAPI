@@ -38,6 +38,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<NotificationLog> NotificationLogs { get; set; }
 
+    public virtual DbSet<NewsArticle> NewsArticles { get; set; }
+
     public virtual DbSet<OtpToken> OtpTokens { get; set; }
 
     public virtual DbSet<OwnerPayout> OwnerPayouts { get; set; }
@@ -263,7 +265,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.FuelType)
                 .HasColumnName("fuel_type");
             entity.Property(e => e.TransmissionType)
-                .HasColumnName("transmission_type");
+                .HasColumnName("transmission");
 
             entity.HasOne(d => d.Location).WithMany(p => p.Cars)
                 .HasForeignKey(d => d.LocationId)
@@ -878,6 +880,31 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("users_role_id_fkey");
+        });
+
+        modelBuilder.Entity<NewsArticle>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("news_articles_pkey");
+            entity.ToTable("news_articles");
+
+            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(e => e.Title).HasColumnName("title").IsRequired();
+            entity.Property(e => e.Summary).HasColumnName("summary").IsRequired();
+            entity.Property(e => e.Content).HasColumnName("content").IsRequired();
+            entity.Property(e => e.Category).HasColumnName("category");
+            entity.Property(e => e.ImageUrl).HasColumnName("image_url");
+            entity.Property(e => e.AuthorId).HasColumnName("author_id");
+            entity.Property(e => e.Status).HasColumnName("status").HasDefaultValue("pending");
+            entity.Property(e => e.RejectReason).HasColumnName("reject_reason");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()");
+
+            entity.HasIndex(e => e.AuthorId, "news_articles_author_id_idx");
+
+            entity.HasOne(e => e.Author).WithMany(u => u.NewsArticles)
+                .HasForeignKey(e => e.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("news_articles_author_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

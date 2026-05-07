@@ -29,29 +29,41 @@ public enum SagaStatus
 
 public enum CarStatus
 {
+    [PgName("available")]
     Available = 0,
+    [PgName("rented")]
     Rented = 1,
+    [PgName("maintenance")]
     Maintenance = 2,
+    [PgName("inactive")]
     Inactive = 3
 }
 
 public enum FuelType
 {
+    [PgName("gasoline")]
     Gasoline = 0,
+    [PgName("diesel")]
     Diesel = 1,
+    [PgName("electric")]
     Electric = 2,
+    [PgName("hybrid")]
     Hybrid = 3
 }
 
 public enum RentalType
 {
+    [PgName("hourly")]
     Hourly = 0,
+    [PgName("daily")]
     Daily = 1
 }
 
 public enum TransmissionType
 {
+    [PgName("automatic")]
     Automatic = 0,
+    [PgName("manual")]
     Manual = 1
 }
 

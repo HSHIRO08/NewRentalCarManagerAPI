@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using NewRentalCarManagerAPI.Application.Features.Auth;
 using NewRentalCarManagerAPI.Application.Features.Bookings;
 using NewRentalCarManagerAPI.Application.Features.Fleet;
+using NewRentalCarManagerAPI.Application.Features.News;
 using NewRentalCarManagerAPI.Application.Features.Ops;
 using NewRentalCarManagerAPI.Application.Features.Payments;
 using NewRentalCarManagerAPI.Application.Features.Users;
@@ -54,6 +55,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // ── Infrastructure Services ──
 builder.Services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
+builder.Services.AddSingleton<IVnPayService, VnPayService>();
 builder.Services.AddSingleton<ISlugService, SlugService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddSingleton<BookingEmailBackgroundService>();
@@ -85,6 +87,7 @@ builder.Services.AddScoped<IDamageReportService, DamageReportService>();
 builder.Services.AddScoped<IPenaltyService, PenaltyService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IOwnerPayoutService, OwnerPayoutService>();
+builder.Services.AddScoped<INewsService, NewsService>();
 
 // ── JWT Authentication ──
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

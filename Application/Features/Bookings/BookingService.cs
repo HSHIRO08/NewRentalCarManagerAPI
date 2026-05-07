@@ -21,6 +21,7 @@ public interface IBookingService
     Task<BookingDto?> UpdateAsync(Guid id, UpdateBookingDto dto);
     Task<bool> DeleteAsync(Guid id);
     Task<BookingDto?> PayBookingAsync(Guid bookingId, Guid payerId);
+    Task<bool> SendEmailAsync(Guid bookingId);
 }
 
 public class BookingService : IBookingService
@@ -303,6 +304,34 @@ public class BookingService : IBookingService
         }
 
         return MapToDto(booking, "Paid", emailStatus);
+    }
+
+    public async Task<bool> SendEmailAsync(Guid bookingId)
+    {
+        var booking = await _uow.Bookings.Query()
+            .Include(b => b.Renter).Include(b => b.Car)
+            .Include(b => b.Transactions)
+            .FirstOrDefaultAsync(b => b.Id == bookingId);
+        if (booking is null) return false;
+
+        var renterEmail = booking.Renter?.Email;
+        if (string.IsNullOrEmpty(renterEmail)) return false;
+
+        var renterName = booking.Renter?.FullName ?? "Khách hàng";
+        var carName = booking.Car != null ? $"{booking.Car.LicensePlate}" : $"#{booking.CarId}";
+
+        await _emailQueue.EnqueueAsync(new BookingEmailJob(
+            BookingId: booking.Id,
+            RenterId: booking.RenterId,
+            RenterEmail: renterEmail,
+            RenterName: renterName,
+            CarName: carName,
+            RentalStart: booking.RentalStart,
+            RentalEnd: booking.RentalEnd,
+            TotalPriceVnd: booking.TotalPriceVnd,
+            PaidAt: DateTime.UtcNow));
+
+        return true;
     }
 
     private static BookingDto MapToDto(Booking e, string? paymentStatus = null, string? emailStatus = null)

@@ -25,5 +25,6 @@ public interface IUnitOfWork : IDisposable
     IRepository<ExternalLogin> ExternalLogins { get; }
     IRepository<ApiKey> ApiKeys { get; }
     IRepository<NotificationLog> NotificationLogs { get; }
+    IRepository<NewsArticle> NewsArticles { get; }
     Task<int> SaveChangesAsync();
 }

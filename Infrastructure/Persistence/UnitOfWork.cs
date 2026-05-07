@@ -30,6 +30,7 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<ExternalLogin>? _externalLogins;
     private IRepository<ApiKey>? _apiKeys;
     private IRepository<NotificationLog>? _notificationLogs;
+    private IRepository<NewsArticle>? _newsArticles;
 
     public IRepository<User> Users => _users ??= new Repository<User>(_context);
     public IRepository<Car> Cars => _cars ??= new Repository<Car>(_context);
@@ -52,6 +53,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<ExternalLogin> ExternalLogins => _externalLogins ??= new Repository<ExternalLogin>(_context);
     public IRepository<ApiKey> ApiKeys => _apiKeys ??= new Repository<ApiKey>(_context);
     public IRepository<NotificationLog> NotificationLogs => _notificationLogs ??= new Repository<NotificationLog>(_context);
+    public IRepository<NewsArticle> NewsArticles => _newsArticles ??= new Repository<NewsArticle>(_context);
 
     public async Task BeginTransactionAsync() => await _context.Database.BeginTransactionAsync();
 

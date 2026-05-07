@@ -85,4 +85,14 @@ public class BookingsController : ControllerBase
         var r = await _service.PayBookingAsync(id, payerId);
         return r is null ? NotFound(ApiResult<BookingDto>.Fail("Booking not found")) : Ok(ApiResult<BookingDto>.Ok(r));
     }
+
+    [HttpPost("{id:guid}/send-email")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> SendEmail(Guid id)
+    {
+        var sent = await _service.SendEmailAsync(id);
+        return sent
+            ? Ok(ApiResult<bool>.Ok(true))
+            : NotFound(ApiResult<bool>.Fail("Booking not found or renter has no email"));
+    }
 }

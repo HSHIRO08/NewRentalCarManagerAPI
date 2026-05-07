@@ -105,8 +105,11 @@ public class CarDto
 public class CreateCarDto
 {
     public Guid OwnerId { get; set; }
-    public Guid ModelId { get; set; }
-    public Guid LocationId { get; set; }
+    public Guid? ModelId { get; set; }
+    public Guid? LocationId { get; set; }
+    public string? BrandName { get; set; }
+    public string? ModelName { get; set; }
+    public string? Location { get; set; }
     public string LicensePlate { get; set; } = null!;
     public short ManufactureYear { get; set; }
     public string? Color { get; set; }
@@ -116,17 +119,40 @@ public class CreateCarDto
     public List<string> Features { get; set; } = new();
     public bool HasIotDevice { get; set; }
     public string? IotDeviceId { get; set; }
+    public string FuelType { get; set; } = "Gasoline";
+    public string TransmissionType { get; set; } = "Automatic";
+    public int PricePerDay { get; set; } = 1000000;
+    public string? ImageUrl { get; set; }
+    public List<string>? ServiceTypes { get; set; }
+    /// <summary>Alias for ManufactureYear — frontend sends 'year'</summary>
+    public short Year { get => ManufactureYear; set => ManufactureYear = value; }
 }
 public class UpdateCarDto
 {
-    public Guid LocationId { get; set; }
+    public Guid? LocationId { get; set; }
+    public string? Location { get; set; }
     public string? Color { get; set; }
     public int MileageKm { get; set; }
     public string? Description { get; set; }
+    public string? Status { get; set; }
+    public string? ImageUrl { get; set; }
     public List<string> ImageUrls { get; set; } = new();
     public List<string> Features { get; set; } = new();
+    public List<string>? ServiceTypes { get; set; }
     public bool HasIotDevice { get; set; }
     public string? IotDeviceId { get; set; }
+    public int? PricePerDay { get; set; }
+    public string? LicensePlate { get; set; }
+    public short? ManufactureYear { get; set; }
+    /// <summary>Alias for ManufactureYear — frontend sends 'year'</summary>
+    public short? Year { get => ManufactureYear; set => ManufactureYear = value; }
+    public string? FuelType { get; set; }
+    public string? TransmissionType { get; set; }
+}
+
+public class UpdateCarStatusDto
+{
+    public string Status { get; set; } = null!;
 }
 
 // ───── CarPricing ─────

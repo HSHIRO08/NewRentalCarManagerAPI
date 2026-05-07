@@ -27,27 +27,32 @@ public class ExceptionMiddleware
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Bad request");
+            if (context.Response.HasStarted) { _logger.LogError(ex, "Response already started, cannot write error"); return; }
             await WriteErrorAsync(context, HttpStatusCode.BadRequest, ex.Message);
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized");
+            if (context.Response.HasStarted) { _logger.LogError(ex, "Response already started, cannot write error"); return; }
             await WriteErrorAsync(context, HttpStatusCode.Unauthorized, ex.Message);
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Conflict");
+            if (context.Response.HasStarted) { _logger.LogError(ex, "Response already started, cannot write error"); return; }
             await WriteErrorAsync(context, HttpStatusCode.Conflict, ex.Message);
         }
         catch (DbUpdateException ex)
         {
             _logger.LogWarning(ex, "Database constraint violation");
+            if (context.Response.HasStarted) { _logger.LogError(ex, "Response already started, cannot write error"); return; }
             var message = ex.InnerException?.Message ?? ex.Message;
             await WriteErrorAsync(context, HttpStatusCode.Conflict, message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");
+            if (context.Response.HasStarted) { _logger.LogError(ex, "Response already started, cannot write error"); return; }
             var message = _env.IsDevelopment()
                 ? ex.InnerException?.Message ?? ex.Message
                 : "An unexpected error occurred";

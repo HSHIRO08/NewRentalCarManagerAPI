@@ -211,6 +211,7 @@ public interface ICarService
     Task<IEnumerable<CarDto>> GetByOwnerAsync(Guid ownerId);
     Task<CarDto> CreateAsync(CreateCarDto dto);
     Task<CarDto?> UpdateAsync(Guid id, UpdateCarDto dto);
+    Task<CarDto?> PatchStatusAsync(Guid id, string status);
     Task<bool> DeleteAsync(Guid id);
 }
 
@@ -220,6 +221,12 @@ public class CarService : ICarService
     public CarService(IUnitOfWork uow) => _uow = uow;
 
     private IQueryable<Car> FullQuery() => _uow.Cars.Query()
+        .Include(c => c.Owner)
+        .Include(c => c.Model).ThenInclude(m => m.Brand)
+        .Include(c => c.Location)
+        .Include(c => c.CarPricings);
+
+    private IQueryable<Car> FreshQuery() => _uow.Cars.Query().AsNoTracking()
         .Include(c => c.Owner)
         .Include(c => c.Model).ThenInclude(m => m.Brand)
         .Include(c => c.Location)
@@ -245,36 +252,172 @@ public class CarService : ICarService
 
     public async Task<CarDto> CreateAsync(CreateCarDto dto)
     {
+        // Resolve ModelId from brand/model names if not provided
+        var modelId = dto.ModelId ?? Guid.Empty;
+        if (modelId == Guid.Empty && !string.IsNullOrWhiteSpace(dto.ModelName))
+        {
+            var model = await _uow.CarModels.Query()
+                .Include(m => m.Brand)
+                .FirstOrDefaultAsync(m => m.Name == dto.ModelName
+                    && (dto.BrandName == null || m.Brand.Name == dto.BrandName));
+            if (model is null)
+                throw new ArgumentException($"Car model '{dto.ModelName}' not found.");
+            modelId = model.Id;
+        }
+
+        // Resolve LocationId from location string if not provided
+        var locationId = dto.LocationId ?? Guid.Empty;
+        if (locationId == Guid.Empty && !string.IsNullOrWhiteSpace(dto.Location))
+        {
+            var location = await _uow.Locations.Query()
+                .FirstOrDefaultAsync(l => l.City == dto.Location || l.Address == dto.Location);
+            if (location is null)
+            {
+                // Auto-create location
+                location = new Location
+                {
+                    Id = Guid.NewGuid(),
+                    City = dto.Location,
+                    IsActive = true
+                };
+                await _uow.Locations.AddAsync(location);
+                await _uow.SaveChangesAsync();
+            }
+            locationId = location.Id;
+        }
+
         var e = new Car
         {
             OwnerId = dto.OwnerId,
-            ModelId = dto.ModelId,
-            LocationId = dto.LocationId,
+            ModelId = modelId,
+            LocationId = locationId,
             LicensePlate = dto.LicensePlate,
             ManufactureYear = dto.ManufactureYear,
             Color = dto.Color,
             MileageKm = dto.MileageKm,
             Description = dto.Description,
-            ImageUrls = dto.ImageUrls,
+            ImageUrls = (!string.IsNullOrWhiteSpace(dto.ImageUrl) && !dto.ImageUrls.Contains(dto.ImageUrl))
+                ? new List<string>(dto.ImageUrls) { dto.ImageUrl }
+                : dto.ImageUrls,
             Features = dto.Features,
             HasIotDevice = dto.HasIotDevice,
             IotDeviceId = dto.IotDeviceId,
+            FuelType = Enum.Parse<Enums.FuelType>(dto.FuelType, true),
+            TransmissionType = Enum.Parse<Enums.TransmissionType>(dto.TransmissionType, true),
+            Status = Enums.CarStatus.Available,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-        
-        return (await GetByIdAsync(e.Id))!;
+        await _uow.Cars.AddAsync(e);
+        await _uow.SaveChangesAsync();
+
+        // Create initial pricing
+        if (dto.PricePerDay > 0)
+        {
+            var pricing = new CarPricing
+            {
+                Id = Guid.NewGuid(),
+                CarId = e.Id,
+                PriceVnd = dto.PricePerDay,
+                IsActive = true,
+                RentalType = Enums.RentalType.Daily
+            };
+            await _uow.CarPricings.AddAsync(pricing);
+            await _uow.SaveChangesAsync();
+        }
+
+        var created = await FreshQuery().FirstOrDefaultAsync(c => c.Id == e.Id);
+        return MapToDto(created!);
     }
 
     public async Task<CarDto?> UpdateAsync(Guid id, UpdateCarDto dto)
     {
         var e = await FullQuery().FirstOrDefaultAsync(c => c.Id == id);
         if (e is null) return null;
-        e.LocationId = dto.LocationId; e.Color = dto.Color;
-        e.MileageKm = dto.MileageKm; e.Description = dto.Description;
-        e.ImageUrls = dto.ImageUrls; e.Features = dto.Features;
-        e.HasIotDevice = dto.HasIotDevice; e.IotDeviceId = dto.IotDeviceId;
+
+        // Resolve LocationId from string if provided
+        var locationId = dto.LocationId ?? Guid.Empty;
+        if (locationId == Guid.Empty && !string.IsNullOrWhiteSpace(dto.Location))
+        {
+            var location = await _uow.Locations.Query()
+                .FirstOrDefaultAsync(l => l.City == dto.Location || l.Address == dto.Location);
+            if (location is null)
+            {
+                location = new Location { Id = Guid.NewGuid(), City = dto.Location, IsActive = true };
+                await _uow.Locations.AddAsync(location);
+                await _uow.SaveChangesAsync();
+            }
+            locationId = location.Id;
+        }
+        if (locationId != Guid.Empty) e.LocationId = locationId;
+
+        // Update status
+        if (!string.IsNullOrWhiteSpace(dto.Status) &&
+            Enum.TryParse<Enums.CarStatus>(dto.Status, ignoreCase: true, out var parsedStatus))
+            e.Status = parsedStatus;
+
+        // Update other fields
+        if (dto.Color is not null) e.Color = dto.Color;
+        e.MileageKm = dto.MileageKm;
+        if (dto.Description is not null) e.Description = dto.Description;
+
+        // Merge imageUrl into imageUrls
+        var imageUrls = dto.ImageUrls ?? new List<string>();
+        if (!string.IsNullOrWhiteSpace(dto.ImageUrl) && !imageUrls.Contains(dto.ImageUrl))
+            imageUrls = new List<string>(imageUrls) { dto.ImageUrl };
+        if (imageUrls.Count > 0) e.ImageUrls = imageUrls;
+
+        if (dto.Features.Count > 0) e.Features = dto.Features;
+        if (dto.LicensePlate is not null) e.LicensePlate = dto.LicensePlate;
+        if (dto.ManufactureYear.HasValue) e.ManufactureYear = dto.ManufactureYear.Value;
+        if (!string.IsNullOrWhiteSpace(dto.FuelType) &&
+            Enum.TryParse<Enums.FuelType>(dto.FuelType, ignoreCase: true, out var parsedFuel))
+            e.FuelType = parsedFuel;
+        if (!string.IsNullOrWhiteSpace(dto.TransmissionType) &&
+            Enum.TryParse<Enums.TransmissionType>(dto.TransmissionType, ignoreCase: true, out var parsedTx))
+            e.TransmissionType = parsedTx;
+        e.HasIotDevice = dto.HasIotDevice;
+        if (dto.IotDeviceId is not null) e.IotDeviceId = dto.IotDeviceId;
+
+        // Update price: upsert the active CarPricing record directly from DB
+        if (dto.PricePerDay.HasValue && dto.PricePerDay.Value > 0)
+        {
+            var pricing = await _uow.CarPricings.Query()
+                .FirstOrDefaultAsync(p => p.CarId == id && p.IsActive);
+            if (pricing is not null)
+            {
+                pricing.PriceVnd = dto.PricePerDay.Value;
+            }
+            else
+            {
+                var newPricing = new CarPricing
+                {
+                    Id = Guid.NewGuid(),
+                    CarId = id,
+                    PriceVnd = dto.PricePerDay.Value,
+                    IsActive = true,
+                    RentalType = Enums.RentalType.Daily
+                };
+                await _uow.CarPricings.AddAsync(newPricing);
+            }
+        }
+
         e.UpdatedAt = DateTime.UtcNow;
+        await _uow.SaveChangesAsync();
+        
+        var updated = await FreshQuery().FirstOrDefaultAsync(c => c.Id == id);
+        return updated is null ? null : MapToDto(updated);
+    }
+
+    public async Task<CarDto?> PatchStatusAsync(Guid id, string status)
+    {
+        var e = await FullQuery().FirstOrDefaultAsync(c => c.Id == id);
+        if (e is null) return null;
+        if (!Enum.TryParse<Enums.CarStatus>(status, ignoreCase: true, out var parsed))
+            throw new ArgumentException($"Invalid car status: {status}");
+        e.Status = parsed;
+        e.UpdatedAt = DateTime.UtcNow;
+        await _uow.SaveChangesAsync();
         return MapToDto(e);
     }
 
