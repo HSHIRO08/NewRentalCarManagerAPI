@@ -10,47 +10,14 @@ namespace NewRentalCarManagerAPI.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "tenant_id",
-                schema: "fleet",
-                table: "locations",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "tenant_id",
-                schema: "fleet",
-                table: "cars",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "tenant_id",
-                schema: "fleet",
-                table: "car_pricing",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "tenant_id",
-                schema: "fleet",
-                table: "car_models",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "tenant_id",
-                schema: "fleet",
-                table: "car_brands",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "tenant_id",
-                schema: "fleet",
-                table: "car_availability_blocks",
-                type: "integer",
-                nullable: true);
+            migrationBuilder.Sql(@"
+ALTER TABLE IF EXISTS fleet.locations ADD COLUMN IF NOT EXISTS tenant_id integer;
+ALTER TABLE IF EXISTS fleet.cars ADD COLUMN IF NOT EXISTS tenant_id integer;
+ALTER TABLE IF EXISTS fleet.car_pricing ADD COLUMN IF NOT EXISTS tenant_id integer;
+ALTER TABLE IF EXISTS fleet.car_models ADD COLUMN IF NOT EXISTS tenant_id integer;
+ALTER TABLE IF EXISTS fleet.car_brands ADD COLUMN IF NOT EXISTS tenant_id integer;
+ALTER TABLE IF EXISTS fleet.car_availability_blocks ADD COLUMN IF NOT EXISTS tenant_id integer;
+");
         }
 
         /// <inheritdoc />

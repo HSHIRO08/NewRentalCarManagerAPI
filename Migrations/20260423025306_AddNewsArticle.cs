@@ -12,261 +12,118 @@ namespace NewRentalCarManagerAPI.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.RenameTable(
-                name: "NewsArticle",
-                newName: "news_articles");
+            migrationBuilder.Sql(@"
+DO $$
+BEGIN
+    IF to_regclass('public.""NewsArticle""') IS NOT NULL AND to_regclass('public.news_articles') IS NULL THEN
+        ALTER TABLE ""NewsArticle"" RENAME TO news_articles;
+    END IF;
+END $$;
 
-            migrationBuilder.RenameColumn(
-                name: "AuthorId",
-                table: "news_articles",
-                newName: "author_id");
+DO $$
+BEGIN
+    IF to_regclass('public.news_articles') IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'news_articles' AND column_name = 'AuthorId'
+    ) AND NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'news_articles' AND column_name = 'author_id'
+    ) THEN
+        ALTER TABLE news_articles RENAME COLUMN ""AuthorId"" TO author_id;
+    END IF;
+END $$;
 
-            migrationBuilder.AddColumn<UserStatus>(
-                name: "status",
-                schema: "identity",
-                table: "users",
-                type: "identity.user_status",
-                nullable: false,
-                defaultValue: UserStatus.Pending);
+ALTER TABLE IF EXISTS identity.users
+    ADD COLUMN IF NOT EXISTS status identity.user_status NOT NULL DEFAULT 'Pending'::identity.user_status;
 
-            migrationBuilder.AddColumn<PaymentDirection>(
-                name: "direction",
-                schema: "payment",
-                table: "transactions",
-                type: "payment.payment_direction",
-                nullable: false,
-                defaultValue: PaymentDirection.Charge);
+ALTER TABLE IF EXISTS payment.transactions
+    ADD COLUMN IF NOT EXISTS direction payment.payment_direction NOT NULL DEFAULT 'Charge'::payment.payment_direction;
+ALTER TABLE IF EXISTS payment.transactions
+    ADD COLUMN IF NOT EXISTS method payment.payment_method NOT NULL DEFAULT 'BankTransfer'::payment.payment_method;
+ALTER TABLE IF EXISTS payment.transactions
+    ADD COLUMN IF NOT EXISTS status payment.payment_status NOT NULL DEFAULT 'Pending'::payment.payment_status;
 
-            migrationBuilder.AddColumn<PaymentMethod>(
-                name: "method",
-                schema: "payment",
-                table: "transactions",
-                type: "payment.payment_method",
-                nullable: false,
-                defaultValue: PaymentMethod.BankTransfer);
+ALTER TABLE IF EXISTS booking.promotions
+    ADD COLUMN IF NOT EXISTS discount_type booking.promotion_type NOT NULL DEFAULT 'Percentage'::booking.promotion_type;
 
-            migrationBuilder.AddColumn<PaymentStatus>(
-                name: "status",
-                schema: "payment",
-                table: "transactions",
-                type: "payment.payment_status",
-                nullable: false,
-                defaultValue: PaymentStatus.Pending);
+ALTER TABLE IF EXISTS ops.penalties
+    ADD COLUMN IF NOT EXISTS status ops.penalty_status NOT NULL DEFAULT 'Pending'::ops.penalty_status;
+ALTER TABLE IF EXISTS ops.penalties
+    ADD COLUMN IF NOT EXISTS type ops.penalty_type NOT NULL DEFAULT 'TrafficFine'::ops.penalty_type;
 
-            migrationBuilder.AddColumn<PromotionType>(
-                name: "discount_type",
-                schema: "booking",
-                table: "promotions",
-                type: "booking.promotion_type",
-                nullable: false,
-                defaultValue: PromotionType.Percentage);
+ALTER TABLE IF EXISTS payment.owner_payouts
+    ADD COLUMN IF NOT EXISTS status payment.payment_status NOT NULL DEFAULT 'Pending'::payment.payment_status;
 
-            migrationBuilder.AddColumn<PenaltyStatus>(
-                name: "status",
-                schema: "ops",
-                table: "penalties",
-                type: "ops.penalty_status",
-                nullable: false,
-                defaultValue: PenaltyStatus.Pending);
+ALTER TABLE IF EXISTS identity.otp_tokens
+    ADD COLUMN IF NOT EXISTS purpose identity.otp_purpose NOT NULL DEFAULT 'Login'::identity.otp_purpose;
 
-            migrationBuilder.AddColumn<PenaltyType>(
-                name: "type",
-                schema: "ops",
-                table: "penalties",
-                type: "ops.penalty_type",
-                nullable: false,
-                defaultValue: PenaltyType.TrafficFine);
+ALTER TABLE IF EXISTS notification.notification_logs
+    ADD COLUMN IF NOT EXISTS channel notification.notif_channel NOT NULL DEFAULT 'Push'::notification.notif_channel;
+ALTER TABLE IF EXISTS notification.notification_logs
+    ADD COLUMN IF NOT EXISTS status notification.notif_status NOT NULL DEFAULT 'Pending'::notification.notif_status;
 
-            migrationBuilder.AddColumn<PaymentStatus>(
-                name: "status",
-                schema: "payment",
-                table: "owner_payouts",
-                type: "payment.payment_status",
-                nullable: false,
-                defaultValue: PaymentStatus.Pending);
+ALTER TABLE IF EXISTS identity.external_logins
+    ADD COLUMN IF NOT EXISTS provider_name identity.provider_name NOT NULL DEFAULT 'Google'::identity.provider_name;
 
-            migrationBuilder.AddColumn<OtpPurpose>(
-                name: "purpose",
-                schema: "identity",
-                table: "otp_tokens",
-                type: "identity.otp_purpose",
-                nullable: false,
-                defaultValue: OtpPurpose.Login);
+ALTER TABLE IF EXISTS ops.damage_reports
+    ADD COLUMN IF NOT EXISTS severity ops.damage_severity NOT NULL DEFAULT 'Minor'::ops.damage_severity;
+ALTER TABLE IF EXISTS ops.damage_reports
+    ADD COLUMN IF NOT EXISTS status ops.damage_status NOT NULL DEFAULT 'Reported'::ops.damage_status;
 
-            migrationBuilder.AddColumn<NotifChannel>(
-                name: "channel",
-                schema: "notification",
-                table: "notification_logs",
-                type: "notification.notif_channel",
-                nullable: false,
-                defaultValue: NotifChannel.Push);
+ALTER TABLE IF EXISTS fleet.cars
+    ADD COLUMN IF NOT EXISTS fuel_type fleet.fuel_type NOT NULL DEFAULT 'Gasoline'::fleet.fuel_type;
+ALTER TABLE IF EXISTS fleet.cars
+    ADD COLUMN IF NOT EXISTS status fleet.car_status NOT NULL DEFAULT 'Available'::fleet.car_status;
+ALTER TABLE IF EXISTS fleet.cars
+    ADD COLUMN IF NOT EXISTS transmission fleet.transmission_type NOT NULL DEFAULT 'Automatic'::fleet.transmission_type;
 
-            migrationBuilder.AddColumn<NotifStatus>(
-                name: "status",
-                schema: "notification",
-                table: "notification_logs",
-                type: "notification.notif_status",
-                nullable: false,
-                defaultValue: NotifStatus.Pending);
+ALTER TABLE IF EXISTS fleet.car_pricing
+    ADD COLUMN IF NOT EXISTS rental_type fleet.rental_type NOT NULL DEFAULT 'Hourly'::fleet.rental_type;
 
-            migrationBuilder.AddColumn<ProviderName>(
-                name: "provider_name",
-                schema: "identity",
-                table: "external_logins",
-                type: "identity.provider_name",
-                nullable: false,
-                defaultValue: ProviderName.Google);
+ALTER TABLE IF EXISTS booking.bookings
+    ADD COLUMN IF NOT EXISTS saga_status booking.saga_status NOT NULL DEFAULT 'Started'::booking.saga_status;
+ALTER TABLE IF EXISTS booking.bookings
+    ADD COLUMN IF NOT EXISTS status booking.booking_status NOT NULL DEFAULT 'Pending'::booking.booking_status;
 
-            migrationBuilder.AddColumn<DamageSeverity>(
-                name: "severity",
-                schema: "ops",
-                table: "damage_reports",
-                type: "ops.damage_severity",
-                nullable: false,
-                defaultValue: DamageSeverity.Minor);
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS id uuid DEFAULT gen_random_uuid();
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS category text;
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS content text NOT NULL DEFAULT '';
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS created_at timestamp with time zone NOT NULL DEFAULT now();
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS image_url text;
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS reject_reason text;
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending';
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS summary text NOT NULL DEFAULT '';
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS title text NOT NULL DEFAULT '';
+ALTER TABLE IF EXISTS news_articles
+    ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone NOT NULL DEFAULT now();
 
-            migrationBuilder.AddColumn<DamageStatus>(
-                name: "status",
-                schema: "ops",
-                table: "damage_reports",
-                type: "ops.damage_status",
-                nullable: false,
-                defaultValue: DamageStatus.Reported);
+DO $$
+BEGIN
+    IF to_regclass('public.news_articles') IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'news_articles_pkey'
+    ) THEN
+        ALTER TABLE news_articles ADD CONSTRAINT news_articles_pkey PRIMARY KEY (id);
+    END IF;
+END $$;
 
-            migrationBuilder.AddColumn<FuelType>(
-                name: "fuel_type",
-                schema: "fleet",
-                table: "cars",
-                type: "fleet.fuel_type",
-                nullable: false,
-                defaultValue: FuelType.Gasoline);
-
-            migrationBuilder.AddColumn<CarStatus>(
-                name: "status",
-                schema: "fleet",
-                table: "cars",
-                type: "fleet.car_status",
-                nullable: false,
-                defaultValue: CarStatus.Available);
-
-            migrationBuilder.AddColumn<TransmissionType>(
-                name: "transmission",
-                schema: "fleet",
-                table: "cars",
-                type: "fleet.transmission_type",
-                nullable: false,
-                defaultValue: TransmissionType.Automatic);
-
-            migrationBuilder.AddColumn<RentalType>(
-                name: "rental_type",
-                schema: "fleet",
-                table: "car_pricing",
-                type: "fleet.rental_type",
-                nullable: false,
-                defaultValue: RentalType.Hourly);
-
-            migrationBuilder.AddColumn<SagaStatus>(
-                name: "saga_status",
-                schema: "booking",
-                table: "bookings",
-                type: "booking.saga_status",
-                nullable: false,
-                defaultValue: SagaStatus.Started);
-
-            migrationBuilder.AddColumn<BookingStatus>(
-                name: "status",
-                schema: "booking",
-                table: "bookings",
-                type: "booking.booking_status",
-                nullable: false,
-                defaultValue: BookingStatus.Pending);
-
-            migrationBuilder.AlterColumn<Guid>(
-                name: "author_id",
-                table: "news_articles",
-                type: "uuid",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"),
-                oldClrType: typeof(Guid),
-                oldType: "uuid",
-                oldNullable: true);
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "id",
-                table: "news_articles",
-                type: "uuid",
-                nullable: false,
-                defaultValueSql: "gen_random_uuid()");
-
-            migrationBuilder.AddColumn<string>(
-                name: "category",
-                table: "news_articles",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "content",
-                table: "news_articles",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "created_at",
-                table: "news_articles",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "now()");
-
-            migrationBuilder.AddColumn<string>(
-                name: "image_url",
-                table: "news_articles",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "reject_reason",
-                table: "news_articles",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "status",
-                table: "news_articles",
-                type: "text",
-                nullable: false,
-                defaultValue: "pending");
-
-            migrationBuilder.AddColumn<string>(
-                name: "summary",
-                table: "news_articles",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<string>(
-                name: "title",
-                table: "news_articles",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "updated_at",
-                table: "news_articles",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "now()");
-
-            migrationBuilder.AddPrimaryKey(
-                name: "news_articles_pkey",
-                table: "news_articles",
-                column: "id");
-
-            migrationBuilder.CreateIndex(
-                name: "news_articles_author_id_idx",
-                table: "news_articles",
-                column: "author_id");
+DO $$
+BEGIN
+    IF to_regclass('public.news_articles') IS NOT NULL THEN
+        CREATE INDEX IF NOT EXISTS news_articles_author_id_idx ON news_articles(author_id);
+    END IF;
+END $$;
+");
         }
 
         /// <inheritdoc />

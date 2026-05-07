@@ -37,8 +37,9 @@ public class CarBrandService : ICarBrandService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var query = _uow.CarBrands.Query().Where(x => x.TenantId == tenantId);
+            var tenantId = _tenantProvider.TryGetTenantId();
+            var query = _uow.CarBrands.Query();
+            if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderBy(x => x.Name)
@@ -58,8 +59,10 @@ public class CarBrandService : ICarBrandService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.CarBrands.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var tenantId = _tenantProvider.TryGetTenantId();
+            var query = _uow.CarBrands.Query().Where(x => x.Id == id);
+            if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
+            var entity = await query.FirstOrDefaultAsync()
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarBrand not found!");
             return DataResult.ResultSuccess(_mapper.Map<CarBrandDto>(entity), "Get success!");
         }

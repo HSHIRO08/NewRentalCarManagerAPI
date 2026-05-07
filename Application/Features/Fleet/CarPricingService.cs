@@ -37,8 +37,9 @@ public class CarPricingService : ICarPricingService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var query = _uow.CarPricings.Query().Where(p => p.CarId == carId && p.TenantId == tenantId);
+            var tenantId = _tenantProvider.TryGetTenantId();
+            var query = _uow.CarPricings.Query().Where(p => p.CarId == carId);
+            if (tenantId.HasValue) query = query.Where(p => p.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderByDescending(p => p.IsActive)
@@ -58,8 +59,10 @@ public class CarPricingService : ICarPricingService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.CarPricings.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var tenantId = _tenantProvider.TryGetTenantId();
+            var query = _uow.CarPricings.Query().Where(x => x.Id == id);
+            if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
+            var entity = await query.FirstOrDefaultAsync()
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarPricing not found!");
             return DataResult.ResultSuccess(_mapper.Map<CarPricingDto>(entity), "Get success!");
         }

@@ -36,25 +36,31 @@ public class CarService : ICarService
         _tenantProvider = tenantProvider;
     }
 
-    private IQueryable<Car> FullQuery(int tenantId) => _uow.Cars.Query()
-        .Include(c => c.Owner)
-        .Include(c => c.Model).ThenInclude(m => m.Brand)
-        .Include(c => c.Location)
-        .Include(c => c.CarPricings)
-        .Where(c => c.TenantId == tenantId);
+    private IQueryable<Car> FullQuery(int? tenantId = null)
+    {
+        var q = _uow.Cars.Query()
+            .Include(c => c.Owner)
+            .Include(c => c.Model).ThenInclude(m => m.Brand)
+            .Include(c => c.Location)
+            .Include(c => c.CarPricings);
+        return tenantId.HasValue ? q.Where(c => c.TenantId == tenantId.Value) : q;
+    }
 
-    private IQueryable<Car> FreshQuery(int tenantId) => _uow.Cars.Query().AsNoTracking()
-        .Include(c => c.Owner)
-        .Include(c => c.Model).ThenInclude(m => m.Brand)
-        .Include(c => c.Location)
-        .Include(c => c.CarPricings)
-        .Where(c => c.TenantId == tenantId);
+    private IQueryable<Car> FreshQuery(int? tenantId = null)
+    {
+        var q = _uow.Cars.Query().AsNoTracking()
+            .Include(c => c.Owner)
+            .Include(c => c.Model).ThenInclude(m => m.Brand)
+            .Include(c => c.Location)
+            .Include(c => c.CarPricings);
+        return tenantId.HasValue ? q.Where(c => c.TenantId == tenantId.Value) : q;
+    }
 
     public async Task<DataResult> GetAllAsync(FleetListInput input)
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
+            var tenantId = _tenantProvider.TryGetTenantId();
             var query = FullQuery(tenantId);
             var totalCount = await query.CountAsync();
             var items = await query
@@ -75,7 +81,7 @@ public class CarService : ICarService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
+            var tenantId = _tenantProvider.TryGetTenantId();
             var entity = await FullQuery(tenantId).FirstOrDefaultAsync(c => c.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Car not found!");
             return DataResult.ResultSuccess(_mapper.Map<CarDto>(entity), "Get success!");
@@ -91,7 +97,7 @@ public class CarService : ICarService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
+            var tenantId = _tenantProvider.TryGetTenantId();
             var query = FullQuery(tenantId).Where(c => c.OwnerId == ownerId);
             var totalCount = await query.CountAsync();
             var items = await query

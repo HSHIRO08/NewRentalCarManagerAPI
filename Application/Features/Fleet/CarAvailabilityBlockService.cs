@@ -35,8 +35,9 @@ public class CarAvailabilityBlockService : ICarAvailabilityBlockService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var query = _uow.CarAvailabilityBlocks.Query().Where(b => b.CarId == carId && b.TenantId == tenantId);
+            var tenantId = _tenantProvider.TryGetTenantId();
+            var query = _uow.CarAvailabilityBlocks.Query().Where(b => b.CarId == carId);
+            if (tenantId.HasValue) query = query.Where(b => b.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderBy(b => b.BlockedFrom)

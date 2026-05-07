@@ -38,10 +38,9 @@ public class CarModelService : ICarModelService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var query = _uow.CarModels.Query()
-                .Include(m => m.Brand)
-                .Where(m => m.TenantId == tenantId);
+            var tenantId = _tenantProvider.TryGetTenantId();
+            IQueryable<CarModel> query = _uow.CarModels.Query().Include(m => m.Brand);
+            if (tenantId.HasValue) query = query.Where(m => m.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderBy(x => x.Name)
@@ -61,10 +60,9 @@ public class CarModelService : ICarModelService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var query = _uow.CarModels.Query()
-                .Include(m => m.Brand)
-                .Where(m => m.BrandId == brandId && m.TenantId == tenantId);
+            var tenantId = _tenantProvider.TryGetTenantId();
+            IQueryable<CarModel> query = _uow.CarModels.Query().Include(m => m.Brand).Where(m => m.BrandId == brandId);
+            if (tenantId.HasValue) query = query.Where(m => m.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderBy(x => x.Name)
@@ -84,10 +82,10 @@ public class CarModelService : ICarModelService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.CarModels.Query()
-                .Include(m => m.Brand)
-                .FirstOrDefaultAsync(m => m.Id == id && m.TenantId == tenantId)
+            var tenantId = _tenantProvider.TryGetTenantId();
+            IQueryable<CarModel> query = _uow.CarModels.Query().Include(m => m.Brand).Where(m => m.Id == id);
+            if (tenantId.HasValue) query = query.Where(m => m.TenantId == tenantId.Value);
+            var entity = await query.FirstOrDefaultAsync()
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarModel not found!");
             return DataResult.ResultSuccess(_mapper.Map<CarModelDto>(entity), "Get success!");
         }

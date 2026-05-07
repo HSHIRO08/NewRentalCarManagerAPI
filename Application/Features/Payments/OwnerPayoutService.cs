@@ -7,7 +7,7 @@ using System.Net;
 
 namespace NewRentalCarManagerAPI.Application.Features.Payments;
 
-public class OwnerPayoutService : IOwnerPayoutService
+public class OwnerPayoutService
 {
     private readonly IUnitOfWork _uow;
     private readonly ILogger<OwnerPayoutService> _logger;

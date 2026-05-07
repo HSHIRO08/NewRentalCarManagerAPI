@@ -37,8 +37,9 @@ public class LocationService : ILocationService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var query = _uow.Locations.Query().Where(x => x.TenantId == tenantId);
+            var tenantId = _tenantProvider.TryGetTenantId();
+            var query = _uow.Locations.Query();
+            if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderBy(x => x.City)
@@ -58,8 +59,10 @@ public class LocationService : ILocationService
     {
         try
         {
-            var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.Locations.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var tenantId = _tenantProvider.TryGetTenantId();
+            var query = _uow.Locations.Query().Where(x => x.Id == id);
+            if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
+            var entity = await query.FirstOrDefaultAsync()
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Location not found!");
             return DataResult.ResultSuccess(_mapper.Map<LocationDto>(entity), "Get success!");
         }

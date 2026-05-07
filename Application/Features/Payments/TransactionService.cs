@@ -7,7 +7,7 @@ using System.Net;
 
 namespace NewRentalCarManagerAPI.Application.Features.Payments;
 
-public class TransactionService : ITransactionService
+public class TransactionService 
 {
     private readonly IUnitOfWork _uow;
     private readonly ILogger<TransactionService> _logger;

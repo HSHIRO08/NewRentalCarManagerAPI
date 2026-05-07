@@ -9,8 +9,8 @@ namespace NewRentalCarManagerAPI.Controllers;
 [Authorize(Roles = "admin")]
 public class OwnerPayoutsController : ControllerBase
 {
-    private readonly IOwnerPayoutService _service;
-    public OwnerPayoutsController(IOwnerPayoutService service) => _service = service;
+    private readonly OwnerPayoutService _service;
+    public OwnerPayoutsController(OwnerPayoutService service) => _service = service;
 
     [HttpGet("owner/{ownerId:guid}")]
     public async Task<IActionResult> GetByOwner(Guid ownerId, [FromQuery] PaymentListInput input)

@@ -88,8 +88,8 @@ builder.Services.AddScoped<IPromotionService, PromotionService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDamageReportService, DamageReportService>();
 builder.Services.AddScoped<IPenaltyService, PenaltyService>();
-builder.Services.AddScoped<ITransactionService, TransactionService>();
-builder.Services.AddScoped<IOwnerPayoutService, OwnerPayoutService>();
+builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<OwnerPayoutService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 
 // ── JWT Authentication ──
