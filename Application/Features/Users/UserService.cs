@@ -1,3 +1,5 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Common;
@@ -19,10 +21,12 @@ public interface IUserService
 public class UserService : IUserService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
     private readonly ILogger<UserService> _logger;
-    public UserService(IUnitOfWork uow, ILogger<UserService> logger)
+    public UserService(IUnitOfWork uow, IMapper mapper, ILogger<UserService> logger)
     {
         _uow = uow;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -30,8 +34,8 @@ public class UserService : IUserService
     {
         try
         {
-            var items = await _uow.Users.Query().Include(u => u.Role).ToListAsync();
-            return DataResult.ResultSuccess(items.Select(MapToDto).ToList(), "Get success!", items.Count);
+            var items = await _uow.Users.Query().ProjectTo<UserDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", items.Count);
         }
         catch (Exception e)
         {
@@ -46,7 +50,7 @@ public class UserService : IUserService
         {
             var entity = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "User not found!");
-            return DataResult.ResultSuccess(MapToDto(entity), "Get success!");
+            return DataResult.ResultSuccess(_mapper.Map<UserDto>(entity), "Get success!");
         }
         catch (Exception e)
         {
@@ -69,7 +73,7 @@ public class UserService : IUserService
             await _uow.Users.AddAsync(entity);
             var created = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create user failed.");
-            return DataResult.ResultSuccess(MapToDto(created), "Insert success!", statusCode: 201);
+            return DataResult.ResultSuccess(_mapper.Map<UserDto>(created), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
         {
@@ -88,7 +92,7 @@ public class UserService : IUserService
             entity.FullName = dto.FullName;
             entity.AvatarUrl = dto.AvatarUrl;
             entity.UpdatedAt = DateTime.UtcNow;
-            return DataResult.ResultSuccess(MapToDto(entity), "Update success!");
+            return DataResult.ResultSuccess(_mapper.Map<UserDto>(entity), "Update success!");
         }
         catch (Exception e)
         {
@@ -113,12 +117,4 @@ public class UserService : IUserService
         }
     }
 
-    private static UserDto MapToDto(User e) => new()
-    {
-        Id = e.Id, Phone = e.Phone, Email = e.Email, FullName = e.FullName,
-        AvatarUrl = e.AvatarUrl, RoleId = e.RoleId, RoleName = e.Role.Name,
-        Status = e.Status.ToString(),
-        ReferralCode = e.ReferralCode, ReferredById = e.ReferredById,
-        CreatedAt = e.CreatedAt, UpdatedAt = e.UpdatedAt
-    };
 }

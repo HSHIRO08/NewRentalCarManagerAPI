@@ -163,7 +163,6 @@ if (!app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<UnitOfWorkCommitMiddleware>();
 app.MapControllers();
 
 app.Run();

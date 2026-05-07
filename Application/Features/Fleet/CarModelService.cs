@@ -110,7 +110,6 @@ public class CarModelService : ICarModelService
             var entity = _mapper.Map<CarModel>(dto);
             entity.TenantId = tenantId;
             await _uow.CarModels.AddAsync(entity);
-
             var created = await _uow.CarModels.Query()
                 .Include(m => m.Brand)
                 .FirstOrDefaultAsync(m => m.Id == entity.Id && m.TenantId == tenantId)

@@ -1,3 +1,5 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Common;
@@ -19,11 +21,13 @@ public interface IReviewService
 public class ReviewService : IReviewService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
     private readonly ILogger<ReviewService> _logger;
 
-    public ReviewService(IUnitOfWork uow, ILogger<ReviewService> logger)
+    public ReviewService(IUnitOfWork uow, IMapper mapper, ILogger<ReviewService> logger)
     {
         _uow = uow;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -37,8 +41,9 @@ public class ReviewService : IReviewService
         {
             var query = BaseQuery().Where(r => r.BookingId == bookingId).OrderByDescending(r => r.CreatedAt);
             var totalCount = await query.CountAsync();
-            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount).ToListAsync();
-            return DataResult.ResultSuccess(items.Select(MapToDto).ToList(), "Get success!", totalCount);
+            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
+                .ProjectTo<ReviewDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", totalCount);
         }
         catch (Exception e)
         {
@@ -53,8 +58,9 @@ public class ReviewService : IReviewService
         {
             var query = BaseQuery().Where(r => r.CarId == carId).OrderByDescending(r => r.CreatedAt);
             var totalCount = await query.CountAsync();
-            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount).ToListAsync();
-            return DataResult.ResultSuccess(items.Select(MapToDto).ToList(), "Get success!", totalCount);
+            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
+                .ProjectTo<ReviewDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", totalCount);
         }
         catch (Exception e)
         {
@@ -69,7 +75,7 @@ public class ReviewService : IReviewService
         {
             var entity = await BaseQuery().FirstOrDefaultAsync(r => r.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Review not found!");
-            return DataResult.ResultSuccess(MapToDto(entity), "Get success!");
+            return DataResult.ResultSuccess(_mapper.Map<ReviewDto>(entity), "Get success!");
         }
         catch (Exception e)
         {
@@ -95,7 +101,7 @@ public class ReviewService : IReviewService
             await _uow.Reviews.AddAsync(entity);
             var created = await BaseQuery().FirstOrDefaultAsync(r => r.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create review failed.");
-            return DataResult.ResultSuccess(MapToDto(created), "Insert success!", statusCode: 201);
+            return DataResult.ResultSuccess(_mapper.Map<ReviewDto>(created), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
         {
@@ -120,17 +126,4 @@ public class ReviewService : IReviewService
         }
     }
 
-    private static ReviewDto MapToDto(Review e) => new()
-    {
-        Id = e.Id,
-        BookingId = e.BookingId,
-        ReviewerId = e.ReviewerId,
-        ReviewerName = e.Reviewer.FullName,
-        RevieweeId = e.RevieweeId,
-        RevieweeName = e.Reviewee.FullName,
-        CarId = e.CarId,
-        Rating = e.Rating,
-        Comment = e.Comment,
-        CreatedAt = e.CreatedAt
-    };
 }

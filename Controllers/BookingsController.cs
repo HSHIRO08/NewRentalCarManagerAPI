@@ -57,7 +57,12 @@ public class BookingsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateBookingDto dto)
     {
-        var result = await _service.CreateAsync(dto);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var renterId))
+            return Unauthorized(DataResult.ResultError(401, "Cannot identify user"));
+
+        var result = await _service.CreateAsync(renterId, dto);
         return StatusCode(result.StatusCode, result);
     }
 

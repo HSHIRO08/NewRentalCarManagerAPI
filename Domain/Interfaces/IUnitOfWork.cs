@@ -27,4 +27,8 @@ public interface IUnitOfWork : IDisposable
     IRepository<NotificationLog> NotificationLogs { get; }
     IRepository<NewsArticle> NewsArticles { get; }
     Task<int> SaveChangesAsync();
+    Task BeginTransactionAsync();
+    Task CommitTransactionAsync();
+    Task RollbackTransactionAsync();
+    Task<int> ExecuteSqlAsync(FormattableString sql);
 }

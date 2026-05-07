@@ -1,3 +1,5 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Common;
@@ -22,11 +24,13 @@ public interface INewsService
 public class NewsService : INewsService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
     private readonly ILogger<NewsService> _logger;
 
-    public NewsService(IUnitOfWork uow, ILogger<NewsService> logger)
+    public NewsService(IUnitOfWork uow, IMapper mapper, ILogger<NewsService> logger)
     {
         _uow = uow;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -35,10 +39,10 @@ public class NewsService : INewsService
         try
         {
             var articles = await _uow.NewsArticles.Query()
-                .Include(a => a.Author)
                 .OrderByDescending(a => a.CreatedAt)
+                .ProjectTo<NewsArticleDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
-            return DataResult.ResultSuccess(articles.Select(MapToDto).ToList(), "Get success!", articles.Count);
+            return DataResult.ResultSuccess(articles, "Get success!", articles.Count);
         }
         catch (Exception e)
         {
@@ -52,11 +56,11 @@ public class NewsService : INewsService
         try
         {
             var articles = await _uow.NewsArticles.Query()
-                .Include(a => a.Author)
                 .Where(a => a.Status == "approved")
                 .OrderByDescending(a => a.CreatedAt)
+                .ProjectTo<NewsArticleDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
-            return DataResult.ResultSuccess(articles.Select(MapToDto).ToList(), "Get success!", articles.Count);
+            return DataResult.ResultSuccess(articles, "Get success!", articles.Count);
         }
         catch (Exception e)
         {
@@ -70,11 +74,11 @@ public class NewsService : INewsService
         try
         {
             var articles = await _uow.NewsArticles.Query()
-                .Include(a => a.Author)
                 .Where(a => a.AuthorId == authorId)
                 .OrderByDescending(a => a.CreatedAt)
+                .ProjectTo<NewsArticleDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
-            return DataResult.ResultSuccess(articles.Select(MapToDto).ToList(), "Get success!", articles.Count);
+            return DataResult.ResultSuccess(articles, "Get success!", articles.Count);
         }
         catch (Exception e)
         {
@@ -91,7 +95,7 @@ public class NewsService : INewsService
                 .Include(a => a.Author)
                 .FirstOrDefaultAsync(a => a.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "News article not found!");
-            return DataResult.ResultSuccess(MapToDto(article), "Get success!");
+            return DataResult.ResultSuccess(_mapper.Map<NewsArticleDto>(article), "Get success!");
         }
         catch (Exception e)
         {
@@ -123,7 +127,7 @@ public class NewsService : INewsService
                 .Include(a => a.Author)
                 .FirstOrDefaultAsync(a => a.Id == article.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create news failed.");
-            return DataResult.ResultSuccess(MapToDto(saved), "Insert success!", statusCode: 201);
+            return DataResult.ResultSuccess(_mapper.Map<NewsArticleDto>(saved), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
         {
@@ -152,7 +156,7 @@ public class NewsService : INewsService
             if (dto.ImageUrl is not null) article.ImageUrl = dto.ImageUrl;
             article.UpdatedAt = DateTime.UtcNow;
 
-            return DataResult.ResultSuccess(MapToDto(article), "Update success!");
+            return DataResult.ResultSuccess(_mapper.Map<NewsArticleDto>(article), "Update success!");
         }
         catch (Exception e)
         {
@@ -180,7 +184,7 @@ public class NewsService : INewsService
             article.RejectReason = action == "rejected" ? dto.RejectReason : null;
             article.UpdatedAt = DateTime.UtcNow;
 
-            return DataResult.ResultSuccess(MapToDto(article), "Review success!");
+            return DataResult.ResultSuccess(_mapper.Map<NewsArticleDto>(article), "Review success!");
         }
         catch (Exception e)
         {
@@ -211,19 +215,4 @@ public class NewsService : INewsService
         }
     }
 
-    private static NewsArticleDto MapToDto(NewsArticle a) => new()
-    {
-        Id = a.Id,
-        Title = a.Title,
-        Summary = a.Summary,
-        Content = a.Content,
-        Category = a.Category,
-        ImageUrl = a.ImageUrl,
-        AuthorId = a.AuthorId,
-        AuthorName = a.Author?.FullName ?? "Ẩn danh",
-        Status = a.Status,
-        RejectReason = a.RejectReason,
-        CreatedAt = a.CreatedAt,
-        UpdatedAt = a.UpdatedAt,
-    };
 }

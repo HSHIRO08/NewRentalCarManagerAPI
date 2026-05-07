@@ -43,7 +43,6 @@ public class BookingDto
 }
 public class CreateBookingDto
 {
-    public Guid RenterId { get; set; }
     public Guid CarId { get; set; }
     public Guid PricingId { get; set; }
     public Guid? PromotionId { get; set; }

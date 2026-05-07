@@ -306,6 +306,7 @@ public class CarService : ICarService
 
             entity.UpdatedAt = DateTime.UtcNow;
 
+            await _uow.SaveChangesAsync();
             var updated = await FreshQuery(tenantId).FirstOrDefaultAsync(c => c.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Update car failed.");
             return DataResult.ResultSuccess(_mapper.Map<CarDto>(updated), "Update success!");

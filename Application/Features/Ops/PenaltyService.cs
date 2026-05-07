@@ -1,3 +1,5 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Common;
@@ -17,11 +19,13 @@ public interface IPenaltyService
 public class PenaltyService : IPenaltyService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
     private readonly ILogger<PenaltyService> _logger;
 
-    public PenaltyService(IUnitOfWork uow, ILogger<PenaltyService> logger)
+    public PenaltyService(IUnitOfWork uow, IMapper mapper, ILogger<PenaltyService> logger)
     {
         _uow = uow;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -34,8 +38,9 @@ public class PenaltyService : IPenaltyService
         {
             var query = BaseQuery().Where(p => p.BookingId == bookingId).OrderByDescending(p => p.CreatedAt);
             var totalCount = await query.CountAsync();
-            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount).ToListAsync();
-            return DataResult.ResultSuccess(items.Select(MapToDto).ToList(), "Get success!", totalCount);
+            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
+                .ProjectTo<PenaltyDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", totalCount);
         }
         catch (Exception e)
         {
@@ -50,7 +55,7 @@ public class PenaltyService : IPenaltyService
         {
             var entity = await BaseQuery().FirstOrDefaultAsync(p => p.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Penalty not found!");
-            return DataResult.ResultSuccess(MapToDto(entity), "Get success!");
+            return DataResult.ResultSuccess(_mapper.Map<PenaltyDto>(entity), "Get success!");
         }
         catch (Exception e)
         {
@@ -75,7 +80,7 @@ public class PenaltyService : IPenaltyService
             await _uow.Penalties.AddAsync(entity);
             var created = await BaseQuery().FirstOrDefaultAsync(p => p.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create penalty failed.");
-            return DataResult.ResultSuccess(MapToDto(created), "Insert success!", statusCode: 201);
+            return DataResult.ResultSuccess(_mapper.Map<PenaltyDto>(created), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
         {
@@ -84,15 +89,4 @@ public class PenaltyService : IPenaltyService
         }
     }
 
-    private static PenaltyDto MapToDto(Penalty e) => new()
-    {
-        Id = e.Id,
-        BookingId = e.BookingId,
-        ChargedTo = e.ChargedTo,
-        ChargedToName = e.ChargedToNavigation.FullName,
-        AmountVnd = e.AmountVnd,
-        Description = e.Description,
-        EvidenceUrl = e.EvidenceUrl,
-        CreatedAt = e.CreatedAt
-    };
 }

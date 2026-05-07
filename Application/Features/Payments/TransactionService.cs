@@ -1,3 +1,5 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Common;
@@ -10,11 +12,13 @@ namespace NewRentalCarManagerAPI.Application.Features.Payments;
 public class TransactionService 
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
     private readonly ILogger<TransactionService> _logger;
 
-    public TransactionService(IUnitOfWork uow, ILogger<TransactionService> logger)
+    public TransactionService(IUnitOfWork uow, IMapper mapper, ILogger<TransactionService> logger)
     {
         _uow = uow;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -27,8 +31,9 @@ public class TransactionService
         {
             var query = BaseQuery().Where(t => t.BookingId == bookingId).OrderByDescending(t => t.CreatedAt);
             var totalCount = await query.CountAsync();
-            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount).ToListAsync();
-            return DataResult.ResultSuccess(items.Select(MapToDto).ToList(), "Get success!", totalCount);
+            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
+                .ProjectTo<TransactionDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", totalCount);
         }
         catch (Exception e)
         {
@@ -43,8 +48,9 @@ public class TransactionService
         {
             var query = BaseQuery().Where(t => t.PayerId == payerId).OrderByDescending(t => t.CreatedAt);
             var totalCount = await query.CountAsync();
-            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount).ToListAsync();
-            return DataResult.ResultSuccess(items.Select(MapToDto).ToList(), "Get success!", totalCount);
+            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
+                .ProjectTo<TransactionDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", totalCount);
         }
         catch (Exception e)
         {
@@ -59,7 +65,7 @@ public class TransactionService
         {
             var entity = await BaseQuery().FirstOrDefaultAsync(t => t.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Transaction not found!");
-            return DataResult.ResultSuccess(MapToDto(entity), "Get success!");
+            return DataResult.ResultSuccess(_mapper.Map<TransactionDto>(entity), "Get success!");
         }
         catch (Exception e)
         {
@@ -85,7 +91,7 @@ public class TransactionService
             await _uow.Transactions.AddAsync(entity);
             var created = await BaseQuery().FirstOrDefaultAsync(t => t.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create transaction failed.");
-            return DataResult.ResultSuccess(MapToDto(created), "Insert success!", statusCode: 201);
+            return DataResult.ResultSuccess(_mapper.Map<TransactionDto>(created), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
         {
@@ -94,17 +100,4 @@ public class TransactionService
         }
     }
 
-    private static TransactionDto MapToDto(Transaction e) => new()
-    {
-        Id = e.Id,
-        BookingId = e.BookingId,
-        PayerId = e.PayerId,
-        PayerName = e.Payer.FullName,
-        PayoutId = e.PayoutId,
-        AmountVnd = e.AmountVnd,
-        GatewayTxId = e.GatewayTxId,
-        Note = e.Note,
-        PaidAt = e.PaidAt,
-        CreatedAt = e.CreatedAt
-    };
 }

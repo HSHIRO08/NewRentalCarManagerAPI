@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using NewRentalCarManagerAPI.Domain.Interfaces;
 using NewRentalCarManagerAPI.Models;
 
@@ -60,6 +61,9 @@ public class UnitOfWork : IUnitOfWork
     public async Task CommitTransactionAsync() => await _context.Database.CommitTransactionAsync();
 
     public async Task RollbackTransactionAsync() => await _context.Database.RollbackTransactionAsync();
+
+    public async Task<int> ExecuteSqlAsync(FormattableString sql)
+        => await _context.Database.ExecuteSqlAsync(sql);
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 

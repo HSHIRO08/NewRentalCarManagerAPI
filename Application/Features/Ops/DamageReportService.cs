@@ -1,3 +1,5 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Common;
@@ -18,11 +20,13 @@ public interface IDamageReportService
 public class DamageReportService : IDamageReportService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
     private readonly ILogger<DamageReportService> _logger;
 
-    public DamageReportService(IUnitOfWork uow, ILogger<DamageReportService> logger)
+    public DamageReportService(IUnitOfWork uow, IMapper mapper, ILogger<DamageReportService> logger)
     {
         _uow = uow;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -35,8 +39,9 @@ public class DamageReportService : IDamageReportService
         {
             var query = BaseQuery().Where(d => d.BookingId == bookingId).OrderByDescending(d => d.CreatedAt);
             var totalCount = await query.CountAsync();
-            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount).ToListAsync();
-            return DataResult.ResultSuccess(items.Select(MapToDto).ToList(), "Get success!", totalCount);
+            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
+                .ProjectTo<DamageReportDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", totalCount);
         }
         catch (Exception e)
         {
@@ -51,7 +56,7 @@ public class DamageReportService : IDamageReportService
         {
             var entity = await BaseQuery().FirstOrDefaultAsync(d => d.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Damage report not found!");
-            return DataResult.ResultSuccess(MapToDto(entity), "Get success!");
+            return DataResult.ResultSuccess(_mapper.Map<DamageReportDto>(entity), "Get success!");
         }
         catch (Exception e)
         {
@@ -76,7 +81,7 @@ public class DamageReportService : IDamageReportService
             await _uow.DamageReports.AddAsync(entity);
             var created = await BaseQuery().FirstOrDefaultAsync(d => d.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create damage report failed.");
-            return DataResult.ResultSuccess(MapToDto(created), "Insert success!", statusCode: 201);
+            return DataResult.ResultSuccess(_mapper.Map<DamageReportDto>(created), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
         {
@@ -93,7 +98,7 @@ public class DamageReportService : IDamageReportService
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Damage report not found!");
             entity.RepairCostVnd = dto.RepairCostVnd;
             entity.ResolvedAt = dto.ResolvedAt;
-            return DataResult.ResultSuccess(MapToDto(entity), "Update success!");
+            return DataResult.ResultSuccess(_mapper.Map<DamageReportDto>(entity), "Update success!");
         }
         catch (Exception e)
         {
@@ -102,16 +107,4 @@ public class DamageReportService : IDamageReportService
         }
     }
 
-    private static DamageReportDto MapToDto(DamageReport e) => new()
-    {
-        Id = e.Id,
-        BookingId = e.BookingId,
-        ReportedBy = e.ReportedBy,
-        ReporterName = e.ReportedByNavigation.FullName,
-        Description = e.Description,
-        ImageUrls = e.ImageUrls,
-        RepairCostVnd = e.RepairCostVnd,
-        ResolvedAt = e.ResolvedAt,
-        CreatedAt = e.CreatedAt
-    };
 }

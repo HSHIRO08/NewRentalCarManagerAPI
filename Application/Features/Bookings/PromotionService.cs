@@ -1,3 +1,5 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Common;
@@ -20,11 +22,13 @@ public interface IPromotionService
 public class PromotionService : IPromotionService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
     private readonly ILogger<PromotionService> _logger;
 
-    public PromotionService(IUnitOfWork uow, ILogger<PromotionService> logger)
+    public PromotionService(IUnitOfWork uow, IMapper mapper, ILogger<PromotionService> logger)
     {
         _uow = uow;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -32,9 +36,8 @@ public class PromotionService : IPromotionService
     {
         try
         {
-            var items = await _uow.Promotions.GetAllAsync();
-            var data = items.Select(MapToDto).ToList();
-            return DataResult.ResultSuccess(data, "Get success!", data.Count);
+            var items = await _uow.Promotions.Query().ProjectTo<PromotionDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", items.Count);
         }
         catch (Exception e)
         {
@@ -49,7 +52,7 @@ public class PromotionService : IPromotionService
         {
             var entity = await _uow.Promotions.GetByIdAsync(id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Promotion not found!");
-            return DataResult.ResultSuccess(MapToDto(entity), "Get success!");
+            return DataResult.ResultSuccess(_mapper.Map<PromotionDto>(entity), "Get success!");
         }
         catch (Exception e)
         {
@@ -64,7 +67,7 @@ public class PromotionService : IPromotionService
         {
             var entity = await _uow.Promotions.Query().FirstOrDefaultAsync(p => p.Code == code && p.IsActive)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Promotion not found!");
-            return DataResult.ResultSuccess(MapToDto(entity), "Get success!");
+            return DataResult.ResultSuccess(_mapper.Map<PromotionDto>(entity), "Get success!");
         }
         catch (Exception e)
         {
@@ -90,7 +93,7 @@ public class PromotionService : IPromotionService
                 IsActive = true
             };
             await _uow.Promotions.AddAsync(entity);
-            return DataResult.ResultSuccess(MapToDto(entity), "Insert success!", statusCode: 201);
+            return DataResult.ResultSuccess(_mapper.Map<PromotionDto>(entity), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
         {
@@ -112,7 +115,7 @@ public class PromotionService : IPromotionService
             entity.ValidFrom = dto.ValidFrom;
             entity.ValidTo = dto.ValidTo;
             entity.IsActive = dto.IsActive;
-            return DataResult.ResultSuccess(MapToDto(entity), "Update success!");
+            return DataResult.ResultSuccess(_mapper.Map<PromotionDto>(entity), "Update success!");
         }
         catch (Exception e)
         {
@@ -137,17 +140,4 @@ public class PromotionService : IPromotionService
         }
     }
 
-    private static PromotionDto MapToDto(Promotion e) => new()
-    {
-        Id = e.Id,
-        Code = e.Code,
-        DiscountValue = e.DiscountValue,
-        MaxDiscountVnd = e.MaxDiscountVnd,
-        MinBookingVnd = e.MinBookingVnd,
-        UsageLimit = e.UsageLimit,
-        UsedCount = e.UsedCount,
-        ValidFrom = e.ValidFrom,
-        ValidTo = e.ValidTo,
-        IsActive = e.IsActive
-    };
 }

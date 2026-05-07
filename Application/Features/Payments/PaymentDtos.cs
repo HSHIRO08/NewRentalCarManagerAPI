@@ -49,7 +49,5 @@ public class CreateOwnerPayoutDto
     public Guid OwnerId { get; set; }
     public DateOnly PeriodFrom { get; set; }
     public DateOnly PeriodTo { get; set; }
-    public int GrossAmountVnd { get; set; }
-    public int PlatformFeeVnd { get; set; }
     public string? BankAccount { get; set; }
 }
