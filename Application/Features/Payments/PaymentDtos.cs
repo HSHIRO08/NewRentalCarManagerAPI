@@ -1,5 +1,11 @@
 namespace NewRentalCarManagerAPI.Application.Features.Payments;
 
+public class PaymentListInput
+{
+    public int SkipCount { get; set; } = 0;
+    public int MaxResultCount { get; set; } = 20;
+}
+
 // ───── Transaction ─────
 public class TransactionDto
 {

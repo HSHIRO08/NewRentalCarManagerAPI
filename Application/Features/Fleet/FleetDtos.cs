@@ -1,9 +1,16 @@
 namespace NewRentalCarManagerAPI.Application.Features.Fleet;
 
+public class FleetListInput
+{
+    public int SkipCount { get; set; } = 0;
+    public int MaxResultCount { get; set; } = 20;
+}
+
 // ───── CarBrand ─────
 public class CarBrandDto
 {
     public Guid Id { get; set; }
+    public int? TenantId { get; set; }
     public string Name { get; set; } = null!;
     public string? LogoUrl { get; set; }
 }
@@ -22,6 +29,7 @@ public class UpdateCarBrandDto
 public class CarModelDto
 {
     public Guid Id { get; set; }
+    public int? TenantId { get; set; }
     public Guid BrandId { get; set; }
     public string BrandName { get; set; } = null!;
     public string Name { get; set; } = null!;
@@ -46,6 +54,7 @@ public class UpdateCarModelDto
 public class LocationDto
 {
     public Guid Id { get; set; }
+    public int? TenantId { get; set; }
     public string City { get; set; } = null!;
     public string? District { get; set; }
     public string? Ward { get; set; }
@@ -78,6 +87,7 @@ public class UpdateLocationDto
 public class CarDto
 {
     public Guid Id { get; set; }
+    public int? TenantId { get; set; }
     public Guid OwnerId { get; set; }
     public string OwnerName { get; set; } = null!;
     public Guid ModelId { get; set; }
@@ -159,6 +169,7 @@ public class UpdateCarStatusDto
 public class CarPricingDto
 {
     public Guid Id { get; set; }
+    public int? TenantId { get; set; }
     public Guid CarId { get; set; }
     public short? DurationHours { get; set; }
     public int PriceVnd { get; set; }
@@ -180,6 +191,7 @@ public class UpdateCarPricingDto
 public class CarAvailabilityBlockDto
 {
     public Guid Id { get; set; }
+    public int? TenantId { get; set; }
     public Guid CarId { get; set; }
     public DateTime BlockedFrom { get; set; }
     public DateTime BlockedTo { get; set; }

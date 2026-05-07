@@ -1,5 +1,11 @@
 namespace NewRentalCarManagerAPI.Application.Features.Bookings;
 
+public class BookingListInput
+{
+    public int SkipCount { get; set; } = 0;
+    public int MaxResultCount { get; set; } = 20;
+}
+
 // ───── Booking ─────
 public class BookingDto
 {

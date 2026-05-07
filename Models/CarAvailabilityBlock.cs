@@ -7,6 +7,8 @@ public partial class CarAvailabilityBlock
 {
     public Guid Id { get; set; }
 
+    public int? TenantId { get; set; }
+
     public Guid CarId { get; set; }
 
     public DateTime BlockedFrom { get; set; }

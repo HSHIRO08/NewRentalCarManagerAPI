@@ -257,6 +257,7 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("mileage_km");
             entity.Property(e => e.ModelId).HasColumnName("model_id");
             entity.Property(e => e.OwnerId).HasColumnName("owner_id");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");
@@ -303,6 +304,7 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(20)
                 .HasDefaultValueSql("'owner'::character varying")
                 .HasColumnName("source");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
 
             entity.HasOne(d => d.Car).WithMany(p => p.CarAvailabilityBlocks)
                 .HasForeignKey(d => d.CarId)
@@ -324,6 +326,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(100)
                 .HasColumnName("name");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
         });
 
         modelBuilder.Entity<CarModel>(entity =>
@@ -345,6 +348,7 @@ public partial class AppDbContext : DbContext
                 .HasMaxLength(100)
                 .HasColumnName("name");
             entity.Property(e => e.SeatCount).HasColumnName("seat_count");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
 
             entity.HasOne(d => d.Brand).WithMany(p => p.CarModels)
                 .HasForeignKey(d => d.BrandId)
@@ -371,6 +375,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.PriceVnd).HasColumnName("price_vnd");
             entity.Property(e => e.RentalType)
                 .HasColumnName("rental_type");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
 
             entity.HasOne(d => d.Car).WithMany(p => p.CarPricings)
                 .HasForeignKey(d => d.CarId)
@@ -473,6 +478,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.Longitude)
                 .HasPrecision(10, 7)
                 .HasColumnName("longitude");
+            entity.Property(e => e.TenantId).HasColumnName("tenant_id");
             entity.Property(e => e.Ward)
                 .HasMaxLength(100)
                 .HasColumnName("ward");

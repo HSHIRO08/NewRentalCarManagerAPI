@@ -19,40 +19,46 @@ public class UsersController : ControllerBase
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst("sub")?.Value;
         if (!Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized(ApiResult<UserDto>.Fail("Invalid user ID"));
-        var r = await _service.GetByIdAsync(userId);
-        return r is null ? NotFound(ApiResult<UserDto>.Fail("User not found")) : Ok(ApiResult<UserDto>.Ok(r));
+            return Unauthorized(DataResult.ResultError(401, "Invalid user ID"));
+        var result = await _service.GetByIdAsync(userId);
+        return StatusCode(result.StatusCode, result);
     }
 
     [Authorize(Roles = "admin")]
     [HttpGet]
     public async Task<IActionResult> GetAll()
-        => Ok(ApiResult<IEnumerable<UserDto>>.Ok(await _service.GetAllAsync()));
+    {
+        var result = await _service.GetAllAsync();
+        return StatusCode(result.StatusCode, result);
+    }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var r = await _service.GetByIdAsync(id);
-        return r is null ? NotFound(ApiResult<UserDto>.Fail("Not found")) : Ok(ApiResult<UserDto>.Ok(r));
+        var result = await _service.GetByIdAsync(id);
+        return StatusCode(result.StatusCode, result);
     }
 
     [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create(CreateUserDto dto)
     {
-        var r = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = r.Id }, ApiResult<UserDto>.Ok(r));
+        var result = await _service.CreateAsync(dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdateUserDto dto)
     {
-        var r = await _service.UpdateAsync(id, dto);
-        return r is null ? NotFound(ApiResult<UserDto>.Fail("Not found")) : Ok(ApiResult<UserDto>.Ok(r));
+        var result = await _service.UpdateAsync(id, dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [Authorize(Roles = "admin")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-        => await _service.DeleteAsync(id) ? Ok(ApiResult<bool>.Ok(true)) : NotFound(ApiResult<bool>.Fail("Not found"));
+    {
+        var result = await _service.DeleteAsync(id);
+        return StatusCode(result.StatusCode, result);
+    }
 }

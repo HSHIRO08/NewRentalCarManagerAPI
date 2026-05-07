@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewRentalCarManagerAPI.Application.Features.Fleet;
-using NewRentalCarManagerAPI.Common;
 
 namespace NewRentalCarManagerAPI.Controllers;
 
@@ -14,14 +13,23 @@ public class CarAvailabilityBlocksController : ControllerBase
     public CarAvailabilityBlocksController(ICarAvailabilityBlockService service) => _service = service;
 
     [HttpGet("car/{carId:guid}")]
-    public async Task<IActionResult> GetByCar(Guid carId)
-        => Ok(ApiResult<IEnumerable<CarAvailabilityBlockDto>>.Ok(await _service.GetByCarAsync(carId)));
+    public async Task<IActionResult> GetByCar(Guid carId, [FromQuery] FleetListInput input)
+    {
+        var result = await _service.GetByCarAsync(carId, input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateCarAvailabilityBlockDto dto)
-        => Ok(ApiResult<CarAvailabilityBlockDto>.Ok(await _service.CreateAsync(dto)));
+    {
+        var result = await _service.CreateAsync(dto);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-        => await _service.DeleteAsync(id) ? Ok(ApiResult<bool>.Ok(true)) : NotFound(ApiResult<bool>.Fail("Not found"));
+    {
+        var result = await _service.DeleteAsync(id);
+        return StatusCode(result.StatusCode, result);
+    }
 }

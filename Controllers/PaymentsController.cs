@@ -43,27 +43,27 @@ public class PaymentsController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
                   ?? User.FindFirstValue("sub");
         if (!Guid.TryParse(userId, out var payerId))
-            return Unauthorized(ApiResult<CreateVnPayUrlResponse>.Fail("Cannot identify user"));
+            return Unauthorized(DataResult.ResultError(401, "Cannot identify user"));
 
         var booking = await _uow.Bookings.Query()
             .Include(b => b.Transactions)
             .FirstOrDefaultAsync(b => b.Id == dto.BookingId);
 
         if (booking is null)
-            return NotFound(ApiResult<CreateVnPayUrlResponse>.Fail("Booking not found"));
+            return NotFound(DataResult.ResultError(404, "Booking not found"));
 
         // Only the renter who owns the booking (or admin) may pay
         if (booking.RenterId != payerId && !User.IsInRole("admin"))
-            return StatusCode(403, ApiResult<CreateVnPayUrlResponse>.Fail("Forbidden"));
+            return StatusCode(403, DataResult.ResultError(403, "Forbidden"));
 
         if (booking.Status == BookingStatus.Cancelled)
-            return BadRequest(ApiResult<CreateVnPayUrlResponse>.Fail("Booking is cancelled"));
+            return BadRequest(DataResult.ResultError(400, "Booking is cancelled"));
 
         // Idempotency: reject if already successfully paid
         var alreadyPaid = booking.Transactions
             .Any(t => t.Status == PaymentStatus.Success && t.Direction == PaymentDirection.Charge);
         if (alreadyPaid)
-            return Conflict(ApiResult<CreateVnPayUrlResponse>.Fail("Booking is already paid"));
+            return Conflict(DataResult.ResultError(409, "Booking is already paid"));
 
         var clientIp  = HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "127.0.0.1";
         var orderInfo = $"Thanh toan booking {dto.BookingId}";
@@ -71,11 +71,11 @@ public class PaymentsController : ControllerBase
 
         _logger.LogInformation("Created VNPay URL for booking {BookingId}, amount={Amount}", dto.BookingId, booking.TotalPriceVnd);
 
-        return Ok(ApiResult<CreateVnPayUrlResponse>.Ok(new CreateVnPayUrlResponse
+        return Ok(DataResult.ResultSuccess(new CreateVnPayUrlResponse
         {
             PaymentUrl = url,
             TxnRef     = dto.BookingId.ToString()
-        }));
+        }, "Get success!"));
     }
 
     // ──────────────────────────────────────────────
@@ -149,17 +149,17 @@ public class PaymentsController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (!Guid.TryParse(userId, out var requesterId))
-            return Unauthorized(ApiResult<IEnumerable<TransactionDto>>.Fail("Cannot identify user"));
+            return Unauthorized(DataResult.ResultError(401, "Cannot identify user"));
 
         var booking = await _uow.Bookings.Query()
             .Include(b => b.Transactions).ThenInclude(t => t.Payer)
             .FirstOrDefaultAsync(b => b.Id == bookingId);
 
         if (booking is null)
-            return NotFound(ApiResult<IEnumerable<TransactionDto>>.Fail("Booking not found"));
+            return NotFound(DataResult.ResultError(404, "Booking not found"));
 
         if (booking.RenterId != requesterId && !User.IsInRole("admin"))
-            return StatusCode(403, ApiResult<IEnumerable<TransactionDto>>.Fail("Forbidden"));
+            return StatusCode(403, DataResult.ResultError(403, "Forbidden"));
 
         var dtos = booking.Transactions.Select(t => new TransactionDto
         {
@@ -175,7 +175,8 @@ public class PaymentsController : ControllerBase
             CreatedAt    = t.CreatedAt
         });
 
-        return Ok(ApiResult<IEnumerable<TransactionDto>>.Ok(dtos));
+        var data = dtos.ToList();
+        return Ok(DataResult.ResultSuccess(data, "Get success!", data.Count));
     }
 
     // ──────────────────────────────────────────────
@@ -224,7 +225,6 @@ public class PaymentsController : ControllerBase
             booking.UpdatedAt = now;
         }
 
-        await _uow.SaveChangesAsync();
         _logger.LogInformation("Payment recorded: BookingId={BookingId}, Success={Success}", bookingId, result.IsSuccess);
     }
 }

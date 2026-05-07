@@ -8,6 +8,8 @@ public partial class CarPricing
 {
     public Guid Id { get; set; }
 
+    public int? TenantId { get; set; }
+
     public Guid CarId { get; set; }
 
     public short? DurationHours { get; set; }

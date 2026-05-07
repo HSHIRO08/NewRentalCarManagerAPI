@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewRentalCarManagerAPI.Application.Features.Fleet;
-using NewRentalCarManagerAPI.Common;
 
 namespace NewRentalCarManagerAPI.Controllers;
 
@@ -15,40 +14,49 @@ public class CarModelsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-        => Ok(ApiResult<IEnumerable<CarModelDto>>.Ok(await _service.GetAllAsync()));
+    public async Task<IActionResult> GetAll([FromQuery] FleetListInput input)
+    {
+        var result = await _service.GetAllAsync(input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [AllowAnonymous]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var r = await _service.GetByIdAsync(id);
-        return r is null ? NotFound(ApiResult<CarModelDto>.Fail("Not found")) : Ok(ApiResult<CarModelDto>.Ok(r));
+        var result = await _service.GetByIdAsync(id);
+        return StatusCode(result.StatusCode, result);
     }
 
     [AllowAnonymous]
     [HttpGet("brand/{brandId:guid}")]
-    public async Task<IActionResult> GetByBrand(Guid brandId)
-        => Ok(ApiResult<IEnumerable<CarModelDto>>.Ok(await _service.GetByBrandAsync(brandId)));
+    public async Task<IActionResult> GetByBrand(Guid brandId, [FromQuery] FleetListInput input)
+    {
+        var result = await _service.GetByBrandAsync(brandId, input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create(CreateCarModelDto dto)
     {
-        var r = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = r.Id }, ApiResult<CarModelDto>.Ok(r));
+        var result = await _service.CreateAsync(dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [Authorize(Roles = "admin")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdateCarModelDto dto)
     {
-        var r = await _service.UpdateAsync(id, dto);
-        return r is null ? NotFound(ApiResult<CarModelDto>.Fail("Not found")) : Ok(ApiResult<CarModelDto>.Ok(r));
+        var result = await _service.UpdateAsync(id, dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [Authorize(Roles = "admin")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-        => await _service.DeleteAsync(id) ? Ok(ApiResult<bool>.Ok(true)) : NotFound(ApiResult<bool>.Fail("Not found"));
+    {
+        var result = await _service.DeleteAsync(id);
+        return StatusCode(result.StatusCode, result);
+    }
 }

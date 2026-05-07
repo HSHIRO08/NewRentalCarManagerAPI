@@ -1,5 +1,11 @@
 namespace NewRentalCarManagerAPI.Application.Features.Ops;
 
+public class OpsListInput
+{
+    public int SkipCount { get; set; } = 0;
+    public int MaxResultCount { get; set; } = 20;
+}
+
 // ───── Review ─────
 public class ReviewDto
 {

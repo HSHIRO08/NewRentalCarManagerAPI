@@ -15,40 +15,50 @@ public class BookingsController : ControllerBase
     public BookingsController(IBookingService service) => _service = service;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-        => Ok(ApiResult<IEnumerable<BookingDto>>.Ok(await _service.GetAllAsync()));
+    public async Task<IActionResult> GetAll([FromQuery] BookingListInput input)
+    {
+        var result = await _service.GetAllAsync(input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [HttpGet("mine")]
-    public async Task<IActionResult> GetMine()
+    public async Task<IActionResult> GetMine([FromQuery] BookingListInput input)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue("sub");
         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var renterId))
-            return Unauthorized(ApiResult<IEnumerable<BookingDto>>.Fail("Cannot identify user"));
+            return Unauthorized(DataResult.ResultError(401, "Cannot identify user"));
 
-        return Ok(ApiResult<IEnumerable<BookingDto>>.Ok(await _service.GetByRenterAsync(renterId)));
+        var result = await _service.GetByRenterAsync(renterId, input);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var r = await _service.GetByIdAsync(id);
-        return r is null ? NotFound(ApiResult<BookingDto>.Fail("Not found")) : Ok(ApiResult<BookingDto>.Ok(r));
+        var result = await _service.GetByIdAsync(id);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpGet("renter/{renterId:guid}")]
-    public async Task<IActionResult> GetByRenter(Guid renterId)
-        => Ok(ApiResult<IEnumerable<BookingDto>>.Ok(await _service.GetByRenterAsync(renterId)));
+    public async Task<IActionResult> GetByRenter(Guid renterId, [FromQuery] BookingListInput input)
+    {
+        var result = await _service.GetByRenterAsync(renterId, input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [HttpGet("car/{carId:guid}")]
-    public async Task<IActionResult> GetByCar(Guid carId)
-        => Ok(ApiResult<IEnumerable<BookingDto>>.Ok(await _service.GetByCarAsync(carId)));
+    public async Task<IActionResult> GetByCar(Guid carId, [FromQuery] BookingListInput input)
+    {
+        var result = await _service.GetByCarAsync(carId, input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateBookingDto dto)
     {
-        var r = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = r.Id }, ApiResult<BookingDto>.Ok(r));
+        var result = await _service.CreateAsync(dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpPost("quick")]
@@ -57,22 +67,25 @@ public class BookingsController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue("sub");
         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var renterId))
-            return Unauthorized(ApiResult<BookingDto>.Fail("Cannot identify user"));
+            return Unauthorized(DataResult.ResultError(401, "Cannot identify user"));
 
-        var r = await _service.QuickCreateAsync(renterId, dto);
-        return CreatedAtAction(nameof(GetById), new { id = r.Id }, ApiResult<BookingDto>.Ok(r));
+        var result = await _service.QuickCreateAsync(renterId, dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdateBookingDto dto)
     {
-        var r = await _service.UpdateAsync(id, dto);
-        return r is null ? NotFound(ApiResult<BookingDto>.Fail("Not found")) : Ok(ApiResult<BookingDto>.Ok(r));
+        var result = await _service.UpdateAsync(id, dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-        => await _service.DeleteAsync(id) ? Ok(ApiResult<bool>.Ok(true)) : NotFound(ApiResult<bool>.Fail("Not found"));
+    {
+        var result = await _service.DeleteAsync(id);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [HttpPost("{id:guid}/pay")]
     public async Task<IActionResult> PayNow(Guid id)
@@ -80,19 +93,17 @@ public class BookingsController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue("sub");
         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var payerId))
-            return Unauthorized(ApiResult<BookingDto>.Fail("Cannot identify user"));
+            return Unauthorized(DataResult.ResultError(401, "Cannot identify user"));
 
-        var r = await _service.PayBookingAsync(id, payerId);
-        return r is null ? NotFound(ApiResult<BookingDto>.Fail("Booking not found")) : Ok(ApiResult<BookingDto>.Ok(r));
+        var result = await _service.PayBookingAsync(id, payerId);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpPost("{id:guid}/send-email")]
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> SendEmail(Guid id)
     {
-        var sent = await _service.SendEmailAsync(id);
-        return sent
-            ? Ok(ApiResult<bool>.Ok(true))
-            : NotFound(ApiResult<bool>.Fail("Booking not found or renter has no email"));
+        var result = await _service.SendEmailAsync(id);
+        return StatusCode(result.StatusCode, result);
     }
 }

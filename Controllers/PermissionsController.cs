@@ -31,11 +31,11 @@ public class PermissionsController : ControllerBase
             ?? User.FindFirst("sub")?.Value;
 
         if (!Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized(ApiResult<object>.Fail("Invalid user ID"));
+            return Unauthorized(DataResult.ResultError(401, "Invalid user ID"));
 
         var user = await _uow.Users.GetByIdAsync(userId);
         if (user == null)
-            return NotFound(ApiResult<object>.Fail("User not found"));
+            return NotFound(DataResult.ResultError(404, "User not found"));
 
         var role = await _uow.Roles.Query()
             .Where(r => r.Id == user.RoleId)
@@ -43,7 +43,7 @@ public class PermissionsController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (role == null)
-            return NotFound(ApiResult<object>.Fail("Role not found"));
+            return NotFound(DataResult.ResultError(404, "Role not found"));
 
         var permissions = role.Permissions.Select(p => new
         {
@@ -52,13 +52,13 @@ public class PermissionsController : ControllerBase
             Permission = $"{p.Resource}:{p.Action}"
         }).ToList();
 
-        return Ok(ApiResult<object>.Ok(new
+        return Ok(DataResult.ResultSuccess(new
         {
             UserId = userId,
             Role = role.Name,
             Permissions = permissions,
             PermissionCount = permissions.Count
-        }));
+        }, "Get success!"));
     }
 
     /// <summary>
@@ -79,12 +79,12 @@ public class PermissionsController : ControllerBase
             })
             .ToList();
 
-        return Ok(ApiResult<object>.Ok(new
+        return Ok(DataResult.ResultSuccess(new
         {
             TotalPermissions = permissions.Count(),
             ResourceCount = grouped.Count,
             Permissions = grouped
-        }));
+        }, "Get success!"));
     }
 
     /// <summary>
@@ -100,7 +100,7 @@ public class PermissionsController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (role == null)
-            return NotFound(ApiResult<object>.Fail($"Role '{roleName}' not found"));
+            return NotFound(DataResult.ResultError(404, $"Role '{roleName}' not found"));
 
         var permissions = role.Permissions.Select(p => new
         {
@@ -109,12 +109,12 @@ public class PermissionsController : ControllerBase
             Permission = $"{p.Resource}:{p.Action}"
         }).OrderBy(p => p.Permission).ToList();
 
-        return Ok(ApiResult<object>.Ok(new
+        return Ok(DataResult.ResultSuccess(new
         {
             Role = role.Name,
             PermissionCount = permissions.Count,
             Permissions = permissions
-        }));
+        }, "Get success!"));
     }
 
     /// <summary>
@@ -127,7 +127,7 @@ public class PermissionsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.RoleName) ||
             string.IsNullOrWhiteSpace(request.Resource) ||
             string.IsNullOrWhiteSpace(request.Action))
-            return BadRequest(ApiResult<object>.Fail("RoleName, Resource, and Action are required"));
+            return BadRequest(DataResult.ResultError(400, "RoleName, Resource, and Action are required"));
 
         var role = await _uow.Roles.Query()
             .Where(r => r.Name == request.RoleName)
@@ -135,23 +135,22 @@ public class PermissionsController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (role == null)
-            return NotFound(ApiResult<object>.Fail($"Role '{request.RoleName}' not found"));
+            return NotFound(DataResult.ResultError(404, $"Role '{request.RoleName}' not found"));
 
         var permission = await _uow.Permissions.Query()
             .FirstOrDefaultAsync(p => p.Resource == request.Resource && p.Action == request.Action);
 
         if (permission == null)
-            return NotFound(ApiResult<object>.Fail($"Permission '{request.Resource}:{request.Action}' not found"));
+            return NotFound(DataResult.ResultError(404, $"Permission '{request.Resource}:{request.Action}' not found"));
 
         if (role.Permissions.Any(p => p.Id == permission.Id))
-            return BadRequest(ApiResult<object>.Fail("Role already has this permission"));
+            return BadRequest(DataResult.ResultError(400, "Role already has this permission"));
 
         role.Permissions.Add(permission);
-        await _uow.SaveChangesAsync();
 
         _logger.LogInformation($"Assigned {request.Resource}:{request.Action} to role {request.RoleName}");
 
-        return Ok(ApiResult<object>.Ok(new { message = "Permission assigned successfully" }));
+        return Ok(DataResult.ResultSuccess(new { message = "Permission assigned successfully" }, "Update success!"));
     }
 
     /// <summary>
@@ -164,7 +163,7 @@ public class PermissionsController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.RoleName) ||
             string.IsNullOrWhiteSpace(request.Resource) ||
             string.IsNullOrWhiteSpace(request.Action))
-            return BadRequest(ApiResult<object>.Fail("RoleName, Resource, and Action are required"));
+            return BadRequest(DataResult.ResultError(400, "RoleName, Resource, and Action are required"));
 
         var role = await _uow.Roles.Query()
             .Where(r => r.Name == request.RoleName)
@@ -172,20 +171,19 @@ public class PermissionsController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (role == null)
-            return NotFound(ApiResult<object>.Fail($"Role '{request.RoleName}' not found"));
+            return NotFound(DataResult.ResultError(404, $"Role '{request.RoleName}' not found"));
 
         var permission = role.Permissions.FirstOrDefault(p =>
             p.Resource == request.Resource && p.Action == request.Action);
 
         if (permission == null)
-            return NotFound(ApiResult<object>.Fail($"Role doesn't have permission '{request.Resource}:{request.Action}'"));
+            return NotFound(DataResult.ResultError(404, $"Role doesn't have permission '{request.Resource}:{request.Action}'"));
 
         role.Permissions.Remove(permission);
-        await _uow.SaveChangesAsync();
 
         _logger.LogInformation($"Revoked {request.Resource}:{request.Action} from role {request.RoleName}");
 
-        return Ok(ApiResult<object>.Ok(new { message = "Permission revoked successfully" }));
+        return Ok(DataResult.ResultSuccess(new { message = "Permission revoked successfully" }, "Update success!"));
     }
 }
 

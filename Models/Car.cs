@@ -8,6 +8,8 @@ public partial class Car
 {
     public Guid Id { get; set; }
 
+    public int? TenantId { get; set; }
+
     public Guid OwnerId { get; set; }
 
     public Guid ModelId { get; set; }

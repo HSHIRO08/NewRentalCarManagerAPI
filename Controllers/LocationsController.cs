@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NewRentalCarManagerAPI.Application.Features.Fleet;
-using NewRentalCarManagerAPI.Common;
 
 namespace NewRentalCarManagerAPI.Controllers;
 
@@ -15,35 +14,41 @@ public class LocationsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-        => Ok(ApiResult<IEnumerable<LocationDto>>.Ok(await _service.GetAllAsync()));
+    public async Task<IActionResult> GetAll([FromQuery] FleetListInput input)
+    {
+        var result = await _service.GetAllAsync(input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [AllowAnonymous]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var r = await _service.GetByIdAsync(id);
-        return r is null ? NotFound(ApiResult<LocationDto>.Fail("Not found")) : Ok(ApiResult<LocationDto>.Ok(r));
+        var result = await _service.GetByIdAsync(id);
+        return StatusCode(result.StatusCode, result);
     }
 
     [Authorize(Roles = "admin")]
     [HttpPost]
     public async Task<IActionResult> Create(CreateLocationDto dto)
     {
-        var r = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = r.Id }, ApiResult<LocationDto>.Ok(r));
+        var result = await _service.CreateAsync(dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [Authorize(Roles = "admin")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdateLocationDto dto)
     {
-        var r = await _service.UpdateAsync(id, dto);
-        return r is null ? NotFound(ApiResult<LocationDto>.Fail("Not found")) : Ok(ApiResult<LocationDto>.Ok(r));
+        var result = await _service.UpdateAsync(id, dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [Authorize(Roles = "admin")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-        => await _service.DeleteAsync(id) ? Ok(ApiResult<bool>.Ok(true)) : NotFound(ApiResult<bool>.Fail("Not found"));
+    {
+        var result = await _service.DeleteAsync(id);
+        return StatusCode(result.StatusCode, result);
+    }
 }

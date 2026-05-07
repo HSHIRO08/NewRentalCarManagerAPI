@@ -16,21 +16,27 @@ public class CarsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-        => Ok(ApiResult<IEnumerable<CarDto>>.Ok(await _service.GetAllAsync()));
+    public async Task<IActionResult> GetAll([FromQuery] FleetListInput input)
+    {
+        var result = await _service.GetAllAsync(input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [AllowAnonymous]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var r = await _service.GetByIdAsync(id);
-        return r is null ? NotFound(ApiResult<CarDto>.Fail("Not found")) : Ok(ApiResult<CarDto>.Ok(r));
+        var result = await _service.GetByIdAsync(id);
+        return StatusCode(result.StatusCode, result);
     }
 
     [AllowAnonymous]
     [HttpGet("owner/{ownerId:guid}")]
-    public async Task<IActionResult> GetByOwner(Guid ownerId)
-        => Ok(ApiResult<IEnumerable<CarDto>>.Ok(await _service.GetByOwnerAsync(ownerId)));
+    public async Task<IActionResult> GetByOwner(Guid ownerId, [FromQuery] FleetListInput input)
+    {
+        var result = await _service.GetByOwnerAsync(ownerId, input);
+        return StatusCode(result.StatusCode, result);
+    }
 
     [HasPermission("cars", "create")]
     [HttpPost]
@@ -39,37 +45,33 @@ public class CarsController : ControllerBase
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst("sub")?.Value;
         if (!Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized(ApiResult<CarDto>.Fail("Invalid user ID"));
+            return Unauthorized(DataResult.ResultError(401, "Invalid user ID"));
         dto.OwnerId = userId;
-        var r = await _service.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = r.Id }, ApiResult<CarDto>.Ok(r));
+        var result = await _service.CreateAsync(dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HasPermission("cars", "update")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdateCarDto dto)
     {
-        var r = await _service.UpdateAsync(id, dto);
-        return r is null ? NotFound(ApiResult<CarDto>.Fail("Not found")) : Ok(ApiResult<CarDto>.Ok(r));
+        var result = await _service.UpdateAsync(id, dto);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HasPermission("cars", "update")]
     [HttpPatch("{id:guid}/status")]
     public async Task<IActionResult> PatchStatus(Guid id, UpdateCarStatusDto dto)
     {
-        try
-        {
-            var r = await _service.PatchStatusAsync(id, dto.Status);
-            return r is null ? NotFound(ApiResult<CarDto>.Fail("Not found")) : Ok(ApiResult<CarDto>.Ok(r));
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ApiResult<CarDto>.Fail(ex.Message));
-        }
+        var result = await _service.PatchStatusAsync(id, dto.Status);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HasPermission("cars", "delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
-        => await _service.DeleteAsync(id) ? Ok(ApiResult<bool>.Ok(true)) : NotFound(ApiResult<bool>.Fail("Not found"));
+    {
+        var result = await _service.DeleteAsync(id);
+        return StatusCode(result.StatusCode, result);
+    }
 }

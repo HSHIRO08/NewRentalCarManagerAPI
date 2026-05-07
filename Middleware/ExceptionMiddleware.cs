@@ -49,6 +49,12 @@ public class ExceptionMiddleware
             var message = ex.InnerException?.Message ?? ex.Message;
             await WriteErrorAsync(context, HttpStatusCode.Conflict, message);
         }
+        catch (UserFriendlyException ex)
+        {
+            _logger.LogWarning(ex, "User friendly exception");
+            if (context.Response.HasStarted) { _logger.LogError(ex, "Response already started, cannot write error"); return; }
+            await WriteErrorAsync(context, (HttpStatusCode)ex.StatusCode, ex.Message);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");
@@ -64,7 +70,7 @@ public class ExceptionMiddleware
     {
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)code;
-        var result = ApiResult<object>.Fail(message);
+        var result = DataResult.ResultError((int)code, message);
         var json = JsonSerializer.Serialize(result, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase

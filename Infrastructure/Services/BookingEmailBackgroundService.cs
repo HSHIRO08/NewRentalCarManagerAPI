@@ -73,7 +73,6 @@ public class BookingEmailBackgroundService : BackgroundService, IBookingEmailQue
                     CreatedAt = job.PaidAt
                 };
                 await uow.NotificationLogs.AddAsync(log);
-                await uow.SaveChangesAsync();
 
                 _logger.LogInformation("Booking email for {BookingId}: {Status}", job.BookingId, sent ? "Sent" : "Failed");
             }

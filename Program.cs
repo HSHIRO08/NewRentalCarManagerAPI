@@ -12,6 +12,7 @@ using NewRentalCarManagerAPI.Application.Features.Payments;
 using NewRentalCarManagerAPI.Application.Features.Users;
 using NewRentalCarManagerAPI.Domain.Interfaces;
 using NewRentalCarManagerAPI.Infrastructure.Authorization;
+using NewRentalCarManagerAPI.Infrastructure.MultiTenancy;
 using NewRentalCarManagerAPI.Infrastructure.Persistence;
 using NewRentalCarManagerAPI.Infrastructure.Services;
 using NewRentalCarManagerAPI.Middleware;
@@ -53,6 +54,8 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // ── Infrastructure Services ──
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantProvider, HttpTenantProvider>();
 builder.Services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 builder.Services.AddSingleton<IVnPayService, VnPayService>();
@@ -110,6 +113,7 @@ builder.Services.AddCors(opt =>
     opt.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 builder.Services.AddControllers();
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

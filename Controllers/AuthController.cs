@@ -14,21 +14,21 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
-        var result = await _service.LoginAsync(dto);
-        return Ok(ApiResult<TokenDto>.Ok(result));
+        var result = DataResult.ResultSuccess(await _service.LoginAsync(dto), "Get success!");
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
-        var result = await _service.RegisterAsync(dto);
-        return Ok(ApiResult<TokenDto>.Ok(result));
+        var result = DataResult.ResultSuccess(await _service.RegisterAsync(dto), "Insert success!", statusCode: 201);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(RefreshTokenRequestDto dto)
     {
-        var result = await _service.RefreshAsync(dto);
-        return Ok(ApiResult<TokenDto>.Ok(result));
+        var result = DataResult.ResultSuccess(await _service.RefreshAsync(dto), "Get success!");
+        return StatusCode(result.StatusCode, result);
     }
 }

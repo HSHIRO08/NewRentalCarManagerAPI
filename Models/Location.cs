@@ -7,6 +7,8 @@ public partial class Location
 {
     public Guid Id { get; set; }
 
+    public int? TenantId { get; set; }
+
     public string City { get; set; } = null!;
 
     public string? District { get; set; }

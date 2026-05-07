@@ -17,13 +17,19 @@ public class NewsController : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetApproved()
-        => Ok(ApiResult<IEnumerable<NewsArticleDto>>.Ok(await _service.GetApprovedAsync()));
+    {
+        var result = await _service.GetApprovedAsync();
+        return StatusCode(result.StatusCode, result);
+    }
 
     /// <summary>Admin: list all articles</summary>
     [HttpGet("all")]
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> GetAll()
-        => Ok(ApiResult<IEnumerable<NewsArticleDto>>.Ok(await _service.GetAllAsync()));
+    {
+        var result = await _service.GetAllAsync();
+        return StatusCode(result.StatusCode, result);
+    }
 
     /// <summary>Owner / Admin: list my articles</summary>
     [HttpGet("mine")]
@@ -31,8 +37,9 @@ public class NewsController : ControllerBase
     public async Task<IActionResult> GetMine()
     {
         var userId = GetUserId();
-        if (userId is null) return Unauthorized(ApiResult<IEnumerable<NewsArticleDto>>.Fail("Không xác định được người dùng"));
-        return Ok(ApiResult<IEnumerable<NewsArticleDto>>.Ok(await _service.GetByAuthorAsync(userId.Value)));
+        if (userId is null) return Unauthorized(DataResult.ResultError(401, "Không xác định được người dùng"));
+        var result = await _service.GetByAuthorAsync(userId.Value);
+        return StatusCode(result.StatusCode, result);
     }
 
     [HttpGet("{id:guid}")]
@@ -40,7 +47,7 @@ public class NewsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _service.GetByIdAsync(id);
-        return result is null ? NotFound(ApiResult<NewsArticleDto>.Fail("Không tìm thấy bài viết")) : Ok(ApiResult<NewsArticleDto>.Ok(result));
+        return StatusCode(result.StatusCode, result);
     }
 
     /// <summary>Owner / Admin: create article (starts as pending)</summary>
@@ -49,9 +56,9 @@ public class NewsController : ControllerBase
     public async Task<IActionResult> Create(CreateNewsArticleDto dto)
     {
         var userId = GetUserId();
-        if (userId is null) return Unauthorized(ApiResult<NewsArticleDto>.Fail("Không xác định được người dùng"));
+        if (userId is null) return Unauthorized(DataResult.ResultError(401, "Không xác định được người dùng"));
         var result = await _service.CreateAsync(userId.Value, dto);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, ApiResult<NewsArticleDto>.Ok(result));
+        return StatusCode(result.StatusCode, result);
     }
 
     /// <summary>Owner (own article) / Admin: update article</summary>
@@ -60,12 +67,10 @@ public class NewsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdateNewsArticleDto dto)
     {
         var userId = GetUserId();
-        if (userId is null) return Unauthorized(ApiResult<NewsArticleDto>.Fail("Không xác định được người dùng"));
+        if (userId is null) return Unauthorized(DataResult.ResultError(401, "Không xác định được người dùng"));
         var isAdmin = User.IsInRole("admin");
         var result = await _service.UpdateAsync(id, userId.Value, isAdmin, dto);
-        return result is null
-            ? NotFound(ApiResult<NewsArticleDto>.Fail("Không tìm thấy hoặc không có quyền"))
-            : Ok(ApiResult<NewsArticleDto>.Ok(result));
+        return StatusCode(result.StatusCode, result);
     }
 
     /// <summary>Admin: approve or reject an article</summary>
@@ -74,9 +79,7 @@ public class NewsController : ControllerBase
     public async Task<IActionResult> Review(Guid id, ReviewNewsArticleDto dto)
     {
         var result = await _service.ReviewAsync(id, dto);
-        return result is null
-            ? NotFound(ApiResult<NewsArticleDto>.Fail("Không tìm thấy bài viết"))
-            : Ok(ApiResult<NewsArticleDto>.Ok(result));
+        return StatusCode(result.StatusCode, result);
     }
 
     /// <summary>Owner (own) / Admin: delete article</summary>
@@ -85,10 +88,10 @@ public class NewsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var userId = GetUserId();
-        if (userId is null) return Unauthorized(ApiResult<bool>.Fail("Không xác định được người dùng"));
+        if (userId is null) return Unauthorized(DataResult.ResultError(401, "Không xác định được người dùng"));
         var isAdmin = User.IsInRole("admin");
-        var deleted = await _service.DeleteAsync(id, userId.Value, isAdmin);
-        return deleted ? Ok(ApiResult<bool>.Ok(true)) : NotFound(ApiResult<bool>.Fail("Không tìm thấy hoặc không có quyền"));
+        var result = await _service.DeleteAsync(id, userId.Value, isAdmin);
+        return StatusCode(result.StatusCode, result);
     }
 
     private Guid? GetUserId()

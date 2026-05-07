@@ -7,6 +7,8 @@ public partial class CarModel
 {
     public Guid Id { get; set; }
 
+    public int? TenantId { get; set; }
+
     public Guid BrandId { get; set; }
 
     public string Name { get; set; } = null!;
