@@ -78,7 +78,6 @@ public class AuthService : IAuthService
             UpdatedAt = DateTime.UtcNow
         };
         await _userRepository.AddAsync(user);
-        await _context.SaveChangesAsync();
 
         user = await _userRepository.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == user.Id)
             ?? throw new InvalidOperationException("Could not load registered user");

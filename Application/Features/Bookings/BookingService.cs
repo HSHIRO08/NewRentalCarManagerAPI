@@ -243,9 +243,6 @@ public class BookingService : IBookingService
             await _carAvailabilityBlockRepository.AddAsync(block);
             block.BookingId = entity.Id;
 
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
-
             var created = await GetEntityByIdAsync(entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create booking failed.");
             return DataResult.ResultSuccess(_mapper.Map<BookingDto>(created), "Insert success!", statusCode: 201);
@@ -561,9 +558,6 @@ public class BookingService : IBookingService
                     await _transactionRepository.AddAsync(refundTx);
                 }
             }
-
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
 
             var updated = await GetEntityByIdAsync(bookingId);
             return DataResult.ResultSuccess(_mapper.Map<BookingDto>(updated), "Huỷ booking thành công!");
