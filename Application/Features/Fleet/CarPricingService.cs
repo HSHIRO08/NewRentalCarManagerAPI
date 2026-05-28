@@ -20,14 +20,16 @@ public interface ICarPricingService
 
 public class CarPricingService : ICarPricingService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<CarPricing> _carPricingRepository;
+    private readonly IRepository<Car> _carRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<CarPricingService> _logger;
     private readonly ITenantProvider _tenantProvider;
 
-    public CarPricingService(IUnitOfWork uow, IMapper mapper, ILogger<CarPricingService> logger, ITenantProvider tenantProvider)
+    public CarPricingService(IRepository<CarPricing> carPricingRepository, IRepository<Car> carRepository, IMapper mapper, ILogger<CarPricingService> logger, ITenantProvider tenantProvider)
     {
-        _uow = uow;
+        _carPricingRepository = carPricingRepository;
+        _carRepository = carRepository;
         _mapper = mapper;
         _logger = logger;
         _tenantProvider = tenantProvider;
@@ -38,7 +40,7 @@ public class CarPricingService : ICarPricingService
         try
         {
             var tenantId = _tenantProvider.TryGetTenantId();
-            var query = _uow.CarPricings.Query().Where(p => p.CarId == carId);
+            var query = _carPricingRepository.Query().Where(p => p.CarId == carId);
             if (tenantId.HasValue) query = query.Where(p => p.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
@@ -60,7 +62,7 @@ public class CarPricingService : ICarPricingService
         try
         {
             var tenantId = _tenantProvider.TryGetTenantId();
-            var query = _uow.CarPricings.Query().Where(x => x.Id == id);
+            var query = _carPricingRepository.Query().Where(x => x.Id == id);
             if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
             var entity = await query.FirstOrDefaultAsync()
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarPricing not found!");
@@ -78,7 +80,7 @@ public class CarPricingService : ICarPricingService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var carExists = await _uow.Cars.Query().AnyAsync(x => x.Id == dto.CarId && x.TenantId == tenantId);
+            var carExists = await _carRepository.Query().AnyAsync(x => x.Id == dto.CarId && x.TenantId == tenantId);
             if (!carExists)
             {
                 throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Car not found!");
@@ -87,7 +89,7 @@ public class CarPricingService : ICarPricingService
             var entity = _mapper.Map<CarPricing>(dto);
             entity.IsActive = true;
             entity.TenantId = tenantId;
-            await _uow.CarPricings.AddAsync(entity);
+            await _carPricingRepository.AddAsync(entity);
             return DataResult.ResultSuccess(_mapper.Map<CarPricingDto>(entity), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
@@ -102,7 +104,7 @@ public class CarPricingService : ICarPricingService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.CarPricings.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var entity = await _carPricingRepository.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarPricing not found!");
             _mapper.Map(dto, entity);
             entity.TenantId = tenantId;
@@ -120,9 +122,9 @@ public class CarPricingService : ICarPricingService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.CarPricings.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var entity = await _carPricingRepository.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarPricing not found!");
-            _uow.CarPricings.Remove(entity);
+            _carPricingRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)

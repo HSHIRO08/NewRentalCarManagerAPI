@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Domain.Interfaces;
 using NewRentalCarManagerAPI.Enums;
+using NewRentalCarManagerAPI.Infrastructure.Persistence;
 using NewRentalCarManagerAPI.Models;
 
 namespace NewRentalCarManagerAPI.Infrastructure.Services;
@@ -57,12 +58,14 @@ public class OverduePenaltyCronJob : BackgroundService
     private async Task ScanAndPenalizeAsync(CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
-        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var bookingRepository = scope.ServiceProvider.GetRequiredService<IRepository<Booking>>();
+        var penaltyRepository = scope.ServiceProvider.GetRequiredService<IRepository<Penalty>>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         var now = DateTime.UtcNow;
 
         // Find Active bookings past their RentalEnd that have no LateReturn penalty yet
-        var overdueBookings = await uow.Bookings.Query()
+        var overdueBookings = await bookingRepository.Query()
             .Include(b => b.Penalties)
             .Where(b =>
                 b.Status == BookingStatus.Active &&
@@ -92,7 +95,7 @@ public class OverduePenaltyCronJob : BackgroundService
                     Description = $"Trả xe trễ {overdueDays:N0} ngày (tự động tính lúc {now:dd/MM/yyyy HH:mm} UTC).",
                     CreatedAt = now
                 };
-                await uow.Penalties.AddAsync(penalty);
+                await penaltyRepository.AddAsync(penalty);
 
                 _logger.LogInformation(
                     "Penalty created for booking {BookingId}: {Days} day(s) late, {Amount:N0} VND.",
@@ -104,6 +107,6 @@ public class OverduePenaltyCronJob : BackgroundService
             }
         }
 
-        await uow.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(ct);
     }
 }

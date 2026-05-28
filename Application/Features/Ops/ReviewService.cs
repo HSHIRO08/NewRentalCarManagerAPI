@@ -20,18 +20,18 @@ public interface IReviewService
 
 public class ReviewService : IReviewService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Review> _reviewRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<ReviewService> _logger;
 
-    public ReviewService(IUnitOfWork uow, IMapper mapper, ILogger<ReviewService> logger)
+    public ReviewService(IRepository<Review> reviewRepository, IMapper mapper, ILogger<ReviewService> logger)
     {
-        _uow = uow;
+        _reviewRepository = reviewRepository;
         _mapper = mapper;
         _logger = logger;
     }
 
-    private IQueryable<Review> BaseQuery() => _uow.Reviews.Query()
+    private IQueryable<Review> BaseQuery() => _reviewRepository.Query()
         .Include(r => r.Reviewer)
         .Include(r => r.Reviewee);
 
@@ -98,7 +98,7 @@ public class ReviewService : IReviewService
                 Comment = dto.Comment,
                 CreatedAt = DateTime.UtcNow
             };
-            await _uow.Reviews.AddAsync(entity);
+            await _reviewRepository.AddAsync(entity);
             var created = await BaseQuery().FirstOrDefaultAsync(r => r.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create review failed.");
             return DataResult.ResultSuccess(_mapper.Map<ReviewDto>(created), "Insert success!", statusCode: 201);
@@ -114,9 +114,9 @@ public class ReviewService : IReviewService
     {
         try
         {
-            var entity = await _uow.Reviews.GetByIdAsync(id)
+            var entity = await _reviewRepository.GetByIdAsync(id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Review not found!");
-            _uow.Reviews.Remove(entity);
+            _reviewRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)

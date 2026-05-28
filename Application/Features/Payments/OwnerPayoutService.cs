@@ -12,18 +12,20 @@ namespace NewRentalCarManagerAPI.Application.Features.Payments;
 
 public class OwnerPayoutService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<OwnerPayout> _ownerPayoutRepository;
+    private readonly IRepository<Booking> _bookingRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<OwnerPayoutService> _logger;
 
-    public OwnerPayoutService(IUnitOfWork uow, IMapper mapper, ILogger<OwnerPayoutService> logger)
+    public OwnerPayoutService(IRepository<OwnerPayout> ownerPayoutRepository, IRepository<Booking> bookingRepository, IMapper mapper, ILogger<OwnerPayoutService> logger)
     {
-        _uow = uow;
+        _ownerPayoutRepository = ownerPayoutRepository;
+        _bookingRepository = bookingRepository;
         _mapper = mapper;
         _logger = logger;
     }
 
-    private IQueryable<OwnerPayout> BaseQuery() => _uow.OwnerPayouts.Query()
+    private IQueryable<OwnerPayout> BaseQuery() => _ownerPayoutRepository.Query()
         .Include(p => p.Owner);
 
     public async Task<DataResult> GetByOwnerAsync(Guid ownerId, PaymentListInput input)
@@ -71,7 +73,7 @@ public class OwnerPayoutService
 
             // Sum TotalPriceVnd of all Completed bookings owned by this user in the period
             // Booking.Car.OwnerId identifies ownership; RentalEnd marks when earnings are realised
-            var grossAmountVnd = await _uow.Bookings.Query()
+            var grossAmountVnd = await _bookingRepository.Query()
                 .Include(b => b.Car)
                 .Where(b =>
                     b.Car.OwnerId == dto.OwnerId &&
@@ -98,7 +100,7 @@ public class OwnerPayoutService
                 NetAmountVnd   = (int)netAmountVnd,
                 BankAccount    = dto.BankAccount
             };
-            await _uow.OwnerPayouts.AddAsync(entity);
+            await _ownerPayoutRepository.AddAsync(entity);
 
             var created = await BaseQuery().FirstOrDefaultAsync(p => p.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create owner payout failed.");

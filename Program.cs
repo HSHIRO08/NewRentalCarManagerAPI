@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using NewRentalCarManagerAPI.Application.Features.Auth;
 using NewRentalCarManagerAPI.Application.Features.Bookings;
 using NewRentalCarManagerAPI.Application.Features.Fleet;
@@ -23,7 +24,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── Database with PostgreSQL native enum mapping ──
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
-var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
 
 dataSourceBuilder.MapEnum<BookingStatus>("booking.booking_status");
 dataSourceBuilder.MapEnum<PromotionType>("booking.promotion_type");
@@ -52,8 +53,8 @@ var dataSource = dataSourceBuilder.Build();
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(dataSource));
 
-// ── Unit of Work ──
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+// ── Repository ──
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
 // ── Infrastructure Services ──
 builder.Services.AddHttpContextAccessor();

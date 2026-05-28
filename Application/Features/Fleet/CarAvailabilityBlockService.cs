@@ -18,14 +18,16 @@ public interface ICarAvailabilityBlockService
 
 public class CarAvailabilityBlockService : ICarAvailabilityBlockService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<CarAvailabilityBlock> _carAvailabilityBlockRepository;
+    private readonly IRepository<Car> _carRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<CarAvailabilityBlockService> _logger;
     private readonly ITenantProvider _tenantProvider;
 
-    public CarAvailabilityBlockService(IUnitOfWork uow, IMapper mapper, ILogger<CarAvailabilityBlockService> logger, ITenantProvider tenantProvider)
+    public CarAvailabilityBlockService(IRepository<CarAvailabilityBlock> carAvailabilityBlockRepository, IRepository<Car> carRepository, IMapper mapper, ILogger<CarAvailabilityBlockService> logger, ITenantProvider tenantProvider)
     {
-        _uow = uow;
+        _carAvailabilityBlockRepository = carAvailabilityBlockRepository;
+        _carRepository = carRepository;
         _mapper = mapper;
         _logger = logger;
         _tenantProvider = tenantProvider;
@@ -36,7 +38,7 @@ public class CarAvailabilityBlockService : ICarAvailabilityBlockService
         try
         {
             var tenantId = _tenantProvider.TryGetTenantId();
-            var query = _uow.CarAvailabilityBlocks.Query().Where(b => b.CarId == carId);
+            var query = _carAvailabilityBlockRepository.Query().Where(b => b.CarId == carId);
             if (tenantId.HasValue) query = query.Where(b => b.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
@@ -58,7 +60,7 @@ public class CarAvailabilityBlockService : ICarAvailabilityBlockService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var carExists = await _uow.Cars.Query().AnyAsync(x => x.Id == dto.CarId && x.TenantId == tenantId);
+            var carExists = await _carRepository.Query().AnyAsync(x => x.Id == dto.CarId && x.TenantId == tenantId);
             if (!carExists)
             {
                 throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Car not found!");
@@ -66,7 +68,7 @@ public class CarAvailabilityBlockService : ICarAvailabilityBlockService
 
             var entity = _mapper.Map<CarAvailabilityBlock>(dto);
             entity.TenantId = tenantId;
-            await _uow.CarAvailabilityBlocks.AddAsync(entity);
+            await _carAvailabilityBlockRepository.AddAsync(entity);
             return DataResult.ResultSuccess(_mapper.Map<CarAvailabilityBlockDto>(entity), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
@@ -81,9 +83,9 @@ public class CarAvailabilityBlockService : ICarAvailabilityBlockService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.CarAvailabilityBlocks.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var entity = await _carAvailabilityBlockRepository.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarAvailabilityBlock not found!");
-            _uow.CarAvailabilityBlocks.Remove(entity);
+            _carAvailabilityBlockRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)

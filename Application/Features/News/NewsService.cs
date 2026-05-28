@@ -23,13 +23,13 @@ public interface INewsService
 
 public class NewsService : INewsService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<NewsArticle> _newsArticleRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<NewsService> _logger;
 
-    public NewsService(IUnitOfWork uow, IMapper mapper, ILogger<NewsService> logger)
+    public NewsService(IRepository<NewsArticle> newsArticleRepository, IMapper mapper, ILogger<NewsService> logger)
     {
-        _uow = uow;
+        _newsArticleRepository = newsArticleRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -38,7 +38,7 @@ public class NewsService : INewsService
     {
         try
         {
-            var articles = await _uow.NewsArticles.Query()
+            var articles = await _newsArticleRepository.Query()
                 .OrderByDescending(a => a.CreatedAt)
                 .ProjectTo<NewsArticleDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
@@ -55,7 +55,7 @@ public class NewsService : INewsService
     {
         try
         {
-            var articles = await _uow.NewsArticles.Query()
+            var articles = await _newsArticleRepository.Query()
                 .Where(a => a.Status == "approved")
                 .OrderByDescending(a => a.CreatedAt)
                 .ProjectTo<NewsArticleDto>(_mapper.ConfigurationProvider)
@@ -73,7 +73,7 @@ public class NewsService : INewsService
     {
         try
         {
-            var articles = await _uow.NewsArticles.Query()
+            var articles = await _newsArticleRepository.Query()
                 .Where(a => a.AuthorId == authorId)
                 .OrderByDescending(a => a.CreatedAt)
                 .ProjectTo<NewsArticleDto>(_mapper.ConfigurationProvider)
@@ -91,7 +91,7 @@ public class NewsService : INewsService
     {
         try
         {
-            var article = await _uow.NewsArticles.Query()
+            var article = await _newsArticleRepository.Query()
                 .Include(a => a.Author)
                 .FirstOrDefaultAsync(a => a.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "News article not found!");
@@ -121,9 +121,9 @@ public class NewsService : INewsService
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
-            await _uow.NewsArticles.AddAsync(article);
+            await _newsArticleRepository.AddAsync(article);
 
-            var saved = await _uow.NewsArticles.Query()
+            var saved = await _newsArticleRepository.Query()
                 .Include(a => a.Author)
                 .FirstOrDefaultAsync(a => a.Id == article.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create news failed.");
@@ -140,7 +140,7 @@ public class NewsService : INewsService
     {
         try
         {
-            var article = await _uow.NewsArticles.Query()
+            var article = await _newsArticleRepository.Query()
                 .Include(a => a.Author)
                 .FirstOrDefaultAsync(a => a.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "News article not found!");
@@ -169,7 +169,7 @@ public class NewsService : INewsService
     {
         try
         {
-            var article = await _uow.NewsArticles.Query()
+            var article = await _newsArticleRepository.Query()
                 .Include(a => a.Author)
                 .FirstOrDefaultAsync(a => a.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "News article not found!");
@@ -197,7 +197,7 @@ public class NewsService : INewsService
     {
         try
         {
-            var article = await _uow.NewsArticles.Query()
+            var article = await _newsArticleRepository.Query()
                 .FirstOrDefaultAsync(a => a.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "News article not found!");
             if (!isAdmin && article.AuthorId != requesterId)
@@ -205,7 +205,7 @@ public class NewsService : INewsService
                 throw new UserFriendlyException((int)HttpStatusCode.Forbidden, "You do not have permission to delete this article.");
             }
 
-            _uow.NewsArticles.Remove(article);
+            _newsArticleRepository.Remove(article);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)

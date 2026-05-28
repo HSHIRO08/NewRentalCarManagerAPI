@@ -23,12 +23,12 @@ public interface IUserService
 
 public class UserService : IUserService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<User> _userRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<UserService> _logger;
-    public UserService(IUnitOfWork uow, IMapper mapper, ILogger<UserService> logger)
+    public UserService(IRepository<User> userRepository, IMapper mapper, ILogger<UserService> logger)
     {
-        _uow = uow;
+        _userRepository = userRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -37,7 +37,7 @@ public class UserService : IUserService
     {
         try
         {
-            var items = await _uow.Users.Query().ProjectTo<UserDto>(_mapper.ConfigurationProvider).ToListAsync();
+            var items = await _userRepository.Query().ProjectTo<UserDto>(_mapper.ConfigurationProvider).ToListAsync();
             return DataResult.ResultSuccess(items, "Get success!", items.Count);
         }
         catch (Exception e)
@@ -51,7 +51,7 @@ public class UserService : IUserService
     {
         try
         {
-            var entity = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id)
+            var entity = await _userRepository.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "User not found!");
             return DataResult.ResultSuccess(_mapper.Map<UserDto>(entity), "Get success!");
         }
@@ -73,8 +73,8 @@ public class UserService : IUserService
                 ReferralCode = dto.ReferralCode, ReferredById = dto.ReferredById,
                 CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
             };
-            await _uow.Users.AddAsync(entity);
-            var created = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == entity.Id)
+            await _userRepository.AddAsync(entity);
+            var created = await _userRepository.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create user failed.");
             return DataResult.ResultSuccess(_mapper.Map<UserDto>(created), "Insert success!", statusCode: 201);
         }
@@ -89,7 +89,7 @@ public class UserService : IUserService
     {
         try
         {
-            var entity = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id)
+            var entity = await _userRepository.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "User not found!");
             entity.Email = dto.Email;
             entity.FullName = dto.FullName;
@@ -110,9 +110,9 @@ public class UserService : IUserService
     {
         try
         {
-            var entity = await _uow.Users.GetByIdAsync(id)
+            var entity = await _userRepository.GetByIdAsync(id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "User not found!");
-            _uow.Users.Remove(entity);
+            _userRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)
@@ -126,7 +126,7 @@ public class UserService : IUserService
     {
         try
         {
-            var entity = await _uow.Users.GetByIdAsync(userId)
+            var entity = await _userRepository.GetByIdAsync(userId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "User not found!");
 
             if (entity.KycStatus == KycStatus.Approved)
@@ -137,9 +137,8 @@ public class UserService : IUserService
             entity.KycStatus = KycStatus.Pending;
             entity.KycRejectReason = null;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _uow.SaveChangesAsync();
 
-            var updated = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
+            var updated = await _userRepository.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
             return DataResult.ResultSuccess(_mapper.Map<UserDto>(updated), "KYC submitted successfully!");
         }
         catch (Exception e)
@@ -153,7 +152,7 @@ public class UserService : IUserService
     {
         try
         {
-            var entity = await _uow.Users.GetByIdAsync(userId)
+            var entity = await _userRepository.GetByIdAsync(userId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "User not found!");
 
             var action = dto.Action.Trim().ToLowerInvariant();
@@ -166,9 +165,8 @@ public class UserService : IUserService
             entity.KycStatus = action == "approve" ? KycStatus.Approved : KycStatus.Rejected;
             entity.KycRejectReason = action == "reject" ? dto.RejectReason : null;
             entity.UpdatedAt = DateTime.UtcNow;
-            await _uow.SaveChangesAsync();
 
-            var updated = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
+            var updated = await _userRepository.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
             return DataResult.ResultSuccess(_mapper.Map<UserDto>(updated), "KYC reviewed!");
         }
         catch (Exception e)

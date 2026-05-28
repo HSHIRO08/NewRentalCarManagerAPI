@@ -20,14 +20,14 @@ public interface ICarBrandService
 
 public class CarBrandService : ICarBrandService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<CarBrand> _carBrandRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<CarBrandService> _logger;
     private readonly ITenantProvider _tenantProvider;
 
-    public CarBrandService(IUnitOfWork uow, IMapper mapper, ILogger<CarBrandService> logger, ITenantProvider tenantProvider)
+    public CarBrandService(IRepository<CarBrand> carBrandRepository, IMapper mapper, ILogger<CarBrandService> logger, ITenantProvider tenantProvider)
     {
-        _uow = uow;
+        _carBrandRepository = carBrandRepository;
         _mapper = mapper;
         _logger = logger;
         _tenantProvider = tenantProvider;
@@ -38,7 +38,7 @@ public class CarBrandService : ICarBrandService
         try
         {
             var tenantId = _tenantProvider.TryGetTenantId();
-            var query = _uow.CarBrands.Query();
+            var query = _carBrandRepository.Query();
             if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
@@ -60,7 +60,7 @@ public class CarBrandService : ICarBrandService
         try
         {
             var tenantId = _tenantProvider.TryGetTenantId();
-            var query = _uow.CarBrands.Query().Where(x => x.Id == id);
+            var query = _carBrandRepository.Query().Where(x => x.Id == id);
             if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
             var entity = await query.FirstOrDefaultAsync()
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarBrand not found!");
@@ -80,7 +80,7 @@ public class CarBrandService : ICarBrandService
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
             var entity = _mapper.Map<CarBrand>(dto);
             entity.TenantId = tenantId;
-            await _uow.CarBrands.AddAsync(entity);
+            await _carBrandRepository.AddAsync(entity);
             return DataResult.ResultSuccess(_mapper.Map<CarBrandDto>(entity), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
@@ -95,7 +95,7 @@ public class CarBrandService : ICarBrandService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.CarBrands.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var entity = await _carBrandRepository.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarBrand not found!");
             _mapper.Map(dto, entity);
             entity.TenantId = tenantId;
@@ -113,9 +113,9 @@ public class CarBrandService : ICarBrandService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.CarBrands.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var entity = await _carBrandRepository.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "CarBrand not found!");
-            _uow.CarBrands.Remove(entity);
+            _carBrandRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)

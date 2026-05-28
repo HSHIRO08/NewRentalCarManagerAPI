@@ -58,13 +58,17 @@ public interface IHandoverService
 
 public class HandoverService : IHandoverService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<HandoverRecord> _handoverRecordRepository;
+    private readonly IRepository<Booking> _bookingRepository;
+    private readonly IRepository<Car> _carRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<HandoverService> _logger;
 
-    public HandoverService(IUnitOfWork uow, IMapper mapper, ILogger<HandoverService> logger)
+    public HandoverService(IRepository<HandoverRecord> handoverRecordRepository, IRepository<Booking> bookingRepository, IRepository<Car> carRepository, IMapper mapper, ILogger<HandoverService> logger)
     {
-        _uow = uow;
+        _handoverRecordRepository = handoverRecordRepository;
+        _bookingRepository = bookingRepository;
+        _carRepository = carRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -73,7 +77,7 @@ public class HandoverService : IHandoverService
     {
         try
         {
-            var list = await _uow.HandoverRecords.Query()
+            var list = await _handoverRecordRepository.Query()
                 .Include(h => h.RecordedByUser)
                 .Where(h => h.BookingId == bookingId)
                 .OrderBy(h => h.RecordedAt)
@@ -92,7 +96,7 @@ public class HandoverService : IHandoverService
     {
         try
         {
-            var booking = await _uow.Bookings.Query()
+            var booking = await _bookingRepository.Query()
                 .Include(b => b.Car)
                 .FirstOrDefaultAsync(b => b.Id == bookingId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Booking not found!");
@@ -101,7 +105,7 @@ public class HandoverService : IHandoverService
                 throw new UserFriendlyException((int)HttpStatusCode.Conflict,
                     $"Check-in requires booking status 'Confirmed'. Current: {booking.Status}");
 
-            var alreadyCheckedIn = await _uow.HandoverRecords.Query()
+            var alreadyCheckedIn = await _handoverRecordRepository.Query()
                 .AnyAsync(h => h.BookingId == bookingId && h.Type == HandoverType.CheckIn);
             if (alreadyCheckedIn)
                 throw new UserFriendlyException((int)HttpStatusCode.Conflict, "Check-in đã được thực hiện cho booking này.");
@@ -121,7 +125,7 @@ public class HandoverService : IHandoverService
                 RecordedBy = actorId,
                 RecordedAt = DateTime.UtcNow
             };
-            await _uow.HandoverRecords.AddAsync(record);
+            await _handoverRecordRepository.AddAsync(record);
 
             // Transition booking: Confirmed → Active
             booking.Status = BookingStatus.Active;
@@ -130,7 +134,7 @@ public class HandoverService : IHandoverService
             // Mark car as Rented
             booking.Car.Status = CarStatus.Rented;
 
-            var result = await _uow.HandoverRecords.Query()
+            var result = await _handoverRecordRepository.Query()
                 .Include(h => h.RecordedByUser)
                 .FirstOrDefaultAsync(h => h.Id == record.Id);
             return DataResult.ResultSuccess(_mapper.Map<HandoverDto>(result), "Check-in thành công!", statusCode: 201);
@@ -147,7 +151,7 @@ public class HandoverService : IHandoverService
     {
         try
         {
-            var booking = await _uow.Bookings.Query()
+            var booking = await _bookingRepository.Query()
                 .Include(b => b.Car)
                 .Include(b => b.Pricing)
                 .FirstOrDefaultAsync(b => b.Id == bookingId)
@@ -157,7 +161,7 @@ public class HandoverService : IHandoverService
                 throw new UserFriendlyException((int)HttpStatusCode.Conflict,
                     $"Check-out requires booking status 'Active'. Current: {booking.Status}");
 
-            var alreadyCheckedOut = await _uow.HandoverRecords.Query()
+            var alreadyCheckedOut = await _handoverRecordRepository.Query()
                 .AnyAsync(h => h.BookingId == bookingId && h.Type == HandoverType.CheckOut);
             if (alreadyCheckedOut)
                 throw new UserFriendlyException((int)HttpStatusCode.Conflict, "Check-out đã được thực hiện cho booking này.");
@@ -201,7 +205,7 @@ public class HandoverService : IHandoverService
                 RecordedBy = actorId,
                 RecordedAt = actualReturn
             };
-            await _uow.HandoverRecords.AddAsync(record);
+            await _handoverRecordRepository.AddAsync(record);
 
             // Apply surcharge and update booking
             booking.ActualReturnAt = actualReturn;
@@ -214,7 +218,7 @@ public class HandoverService : IHandoverService
             // Release car back to Available
             booking.Car.Status = CarStatus.Available;
 
-            var result = await _uow.HandoverRecords.Query()
+            var result = await _handoverRecordRepository.Query()
                 .Include(h => h.RecordedByUser)
                 .FirstOrDefaultAsync(h => h.Id == record.Id);
             return DataResult.ResultSuccess(_mapper.Map<HandoverDto>(result), "Check-out thành công!" +

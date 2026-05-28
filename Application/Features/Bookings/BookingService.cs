@@ -32,26 +32,52 @@ public interface IBookingService
 
 public class BookingService : IBookingService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Booking> _bookingRepository;
+    private readonly IRepository<User> _userRepository;
+    private readonly IRepository<Car> _carRepository;
+    private readonly IRepository<CarPricing> _carPricingRepository;
+    private readonly IRepository<CarAvailabilityBlock> _carAvailabilityBlockRepository;
+    private readonly IRepository<Promotion> _promotionRepository;
+    private readonly IRepository<Transaction> _transactionRepository;
+    private readonly AppDbContext _context;
     private readonly IMapper _mapper;
     private readonly IBookingEmailQueue _emailQueue;
     private readonly ILogger<BookingService> _logger;
-    public BookingService(IUnitOfWork uow, IMapper mapper, IBookingEmailQueue emailQueue, ILogger<BookingService> logger)
+
+    public BookingService(
+        IRepository<Booking> bookingRepository,
+        IRepository<User> userRepository,
+        IRepository<Car> carRepository,
+        IRepository<CarPricing> carPricingRepository,
+        IRepository<CarAvailabilityBlock> carAvailabilityBlockRepository,
+        IRepository<Promotion> promotionRepository,
+        IRepository<Transaction> transactionRepository,
+        AppDbContext context,
+        IMapper mapper,
+        IBookingEmailQueue emailQueue,
+        ILogger<BookingService> logger)
     {
-        _uow = uow;
+        _bookingRepository = bookingRepository;
+        _userRepository = userRepository;
+        _carRepository = carRepository;
+        _carPricingRepository = carPricingRepository;
+        _carAvailabilityBlockRepository = carAvailabilityBlockRepository;
+        _promotionRepository = promotionRepository;
+        _transactionRepository = transactionRepository;
+        _context = context;
         _mapper = mapper;
         _emailQueue = emailQueue;
         _logger = logger;
     }
 
-    private IQueryable<Booking> BaseQuery() => _uow.Bookings.Query()
+    private IQueryable<Booking> BaseQuery() => _bookingRepository.Query()
         .Include(b => b.Renter).Include(b => b.Car).Include(b => b.Transactions);
 
     public async Task<DataResult> GetAllAsync(BookingListInput input)
     {
         try
         {
-            var query = _uow.Bookings.Query().OrderByDescending(b => b.CreatedAt);
+            var query = _bookingRepository.Query().OrderByDescending(b => b.CreatedAt);
             var totalCount = await query.CountAsync();
             var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
                 .ProjectTo<BookingDto>(_mapper.ConfigurationProvider).ToListAsync();
@@ -83,7 +109,7 @@ public class BookingService : IBookingService
     {
         try
         {
-            var query = _uow.Bookings.Query().Where(b => b.RenterId == renterId).OrderByDescending(b => b.CreatedAt);
+            var query = _bookingRepository.Query().Where(b => b.RenterId == renterId).OrderByDescending(b => b.CreatedAt);
             var totalCount = await query.CountAsync();
             var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
                 .ProjectTo<BookingDto>(_mapper.ConfigurationProvider).ToListAsync();
@@ -100,7 +126,7 @@ public class BookingService : IBookingService
     {
         try
         {
-            var query = _uow.Bookings.Query()
+            var query = _bookingRepository.Query()
                 .Include(b => b.Renter)
                 .Include(b => b.Car)
                 .Include(b => b.Transactions)
@@ -122,7 +148,7 @@ public class BookingService : IBookingService
     {
         try
         {
-            var query = _uow.Bookings.Query().Where(b => b.CarId == carId).OrderByDescending(b => b.CreatedAt);
+            var query = _bookingRepository.Query().Where(b => b.CarId == carId).OrderByDescending(b => b.CreatedAt);
             var totalCount = await query.CountAsync();
             var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
                 .ProjectTo<BookingDto>(_mapper.ConfigurationProvider).ToListAsync();
@@ -137,11 +163,11 @@ public class BookingService : IBookingService
 
     public async Task<DataResult> CreateAsync(Guid renterId, CreateBookingDto dto)
     {
-        await _uow.BeginTransactionAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             // Guard: renter must have approved KYC before booking
-            var renter = await _uow.Users.GetByIdAsync(renterId)
+            var renter = await _userRepository.GetByIdAsync(renterId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Renter not found!");
             if (renter.KycStatus != Enums.KycStatus.Approved)
                 throw new UserFriendlyException((int)HttpStatusCode.Forbidden,
@@ -149,12 +175,12 @@ public class BookingService : IBookingService
 
             // Acquire per-car advisory lock — held until transaction ends, works across distributed nodes
             var carLockId = BitConverter.ToInt64(dto.CarId.ToByteArray(), 0);
-            await _uow.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({carLockId})");
+            await _context.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({carLockId})");
 
-            var pricing = await _uow.CarPricings.GetByIdAsync(dto.PricingId)
+            var pricing = await _carPricingRepository.GetByIdAsync(dto.PricingId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Pricing not found!");
 
-            var hasOverlap = await _uow.CarAvailabilityBlocks.Query()
+            var hasOverlap = await _carAvailabilityBlockRepository.Query()
                 .AnyAsync(b => b.CarId == dto.CarId && b.BlockedFrom < dto.RentalEnd && b.BlockedTo > dto.RentalStart);
             if (hasOverlap)
                 throw new UserFriendlyException((int)HttpStatusCode.Conflict, "Car is not available for the selected dates");
@@ -167,14 +193,14 @@ public class BookingService : IBookingService
             var discountVnd = 0;
             if (dto.PromotionId.HasValue)
             {
-                var promo = await _uow.Promotions.GetByIdAsync(dto.PromotionId.Value)
+                var promo = await _promotionRepository.GetByIdAsync(dto.PromotionId.Value)
                     ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Promotion not found!");
 
                 if (!promo.MinBookingVnd.HasValue || basePriceVnd >= promo.MinBookingVnd.Value)
                 {
                     // Atomic increment with guard — eliminates UsedCount race condition
                     var promoId = dto.PromotionId.Value;
-                    var rows = await _uow.ExecuteSqlAsync(
+                    var rows = await _context.Database.ExecuteSqlAsync(
                         $"""
                         UPDATE booking.promotions
                            SET used_count = used_count + 1
@@ -207,16 +233,18 @@ public class BookingService : IBookingService
                 DepositVnd = dto.DepositVnd, Note = dto.Note,
                 CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
             };
-            await _uow.Bookings.AddAsync(entity);
+            await _bookingRepository.AddAsync(entity);
 
             var block = new CarAvailabilityBlock
             {
                 CarId = dto.CarId, BlockedFrom = dto.RentalStart,
                 BlockedTo = dto.RentalEnd, Source = "booking"
             };
-            await _uow.CarAvailabilityBlocks.AddAsync(block);
+            await _carAvailabilityBlockRepository.AddAsync(block);
             block.BookingId = entity.Id;
 
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             var created = await GetEntityByIdAsync(entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create booking failed.");
@@ -224,7 +252,7 @@ public class BookingService : IBookingService
         }
         catch (Exception e)
         {
-            await _uow.RollbackTransactionAsync();
+            await transaction.RollbackAsync();
             if (e is not UserFriendlyException)
                 _logger.LogError(e, "Failed to create booking");
             throw;
@@ -236,9 +264,9 @@ public class BookingService : IBookingService
         try
         {
             var carLockId = BitConverter.ToInt64(dto.CarId.ToByteArray(), 0);
-            await _uow.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({carLockId})");
+            await _context.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({carLockId})");
 
-            var car = await _uow.Cars.Query()
+            var car = await _carRepository.Query()
                 .Include(c => c.CarPricings)
                 .FirstOrDefaultAsync(c => c.Id == dto.CarId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Car not found!");
@@ -246,7 +274,7 @@ public class BookingService : IBookingService
             var rentalStart = DateTime.Parse(dto.StartDate).ToUniversalTime();
             var rentalEnd = DateTime.Parse(dto.EndDate).ToUniversalTime();
 
-            var hasOverlap = await _uow.CarAvailabilityBlocks.Query()
+            var hasOverlap = await _carAvailabilityBlockRepository.Query()
                 .AnyAsync(b => b.CarId == dto.CarId && b.BlockedFrom < rentalEnd && b.BlockedTo > rentalStart);
             if (hasOverlap)
                 throw new UserFriendlyException((int)HttpStatusCode.Conflict, "Car is not available for the selected dates");
@@ -271,7 +299,7 @@ public class BookingService : IBookingService
                 {
                     CarId = car.Id, DurationHours = 24, PriceVnd = 1000000, IsActive = true
                 };
-                await _uow.CarPricings.AddAsync(defaultPricing);
+                await _carPricingRepository.AddAsync(defaultPricing);
                 pricingId = defaultPricing.Id;
                 var totalDays = Math.Ceiling((rentalEnd - rentalStart).TotalDays);
                 basePriceVnd = (int)totalDays * 1000000;
@@ -290,14 +318,14 @@ public class BookingService : IBookingService
                 DepositVnd = 0, Note = dto.Note,
                 CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
             };
-            await _uow.Bookings.AddAsync(entity);
+            await _bookingRepository.AddAsync(entity);
 
             var block = new CarAvailabilityBlock
             {
                 CarId = dto.CarId, BlockedFrom = rentalStart,
                 BlockedTo = rentalEnd, Source = "booking"
             };
-            await _uow.CarAvailabilityBlocks.AddAsync(block);
+            await _carAvailabilityBlockRepository.AddAsync(block);
             block.BookingId = entity.Id;
 
             var dtoResult = new BookingDto
@@ -350,9 +378,9 @@ public class BookingService : IBookingService
     {
         try
         {
-            var entity = await _uow.Bookings.GetByIdAsync(id)
+            var entity = await _bookingRepository.GetByIdAsync(id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Booking not found!");
-            _uow.Bookings.Remove(entity);
+            _bookingRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)
@@ -392,7 +420,7 @@ public class BookingService : IBookingService
                 CreatedAt = paidAt,
                 Note = "Thanh toán trực tiếp"
             };
-            await _uow.Transactions.AddAsync(tx);
+            await _transactionRepository.AddAsync(tx);
 
             if (booking.Status == BookingStatus.Pending)
             {
@@ -473,7 +501,7 @@ public class BookingService : IBookingService
 
     private Task<Booking?> GetEntityByIdAsync(Guid id)
     {
-        return _uow.Bookings.Query()
+        return _bookingRepository.Query()
             .Include(b => b.Renter)
             .Include(b => b.Car)
             .Include(b => b.Transactions)
@@ -482,7 +510,7 @@ public class BookingService : IBookingService
 
     public async Task<DataResult> CancelAsync(Guid bookingId, Guid actorId, CancelBookingDto dto)
     {
-        await _uow.BeginTransactionAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             var booking = await GetEntityByIdAsync(bookingId)
@@ -497,10 +525,10 @@ public class BookingService : IBookingService
             booking.UpdatedAt = DateTime.UtcNow;
 
             // Remove availability block for this booking
-            var block = await _uow.CarAvailabilityBlocks.Query()
+            var block = await _carAvailabilityBlockRepository.Query()
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId);
             if (block != null)
-                _uow.CarAvailabilityBlocks.Remove(block);
+                _carAvailabilityBlockRepository.Remove(block);
 
             // Auto-refund deposit if it was charged
             var depositCharge = booking.Transactions.FirstOrDefault(t =>
@@ -530,17 +558,19 @@ public class BookingService : IBookingService
                         PaidAt = now,
                         CreatedAt = now
                     };
-                    await _uow.Transactions.AddAsync(refundTx);
+                    await _transactionRepository.AddAsync(refundTx);
                 }
             }
 
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             var updated = await GetEntityByIdAsync(bookingId);
             return DataResult.ResultSuccess(_mapper.Map<BookingDto>(updated), "Huỷ booking thành công!");
         }
         catch (Exception e)
         {
-            await _uow.RollbackTransactionAsync();
+            await transaction.RollbackAsync();
             if (e is not UserFriendlyException)
                 _logger.LogError(e, "Failed to cancel booking {BookingId}", bookingId);
             throw;

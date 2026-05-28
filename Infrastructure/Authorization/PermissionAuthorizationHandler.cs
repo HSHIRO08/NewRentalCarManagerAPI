@@ -11,12 +11,12 @@ namespace NewRentalCarManagerAPI.Infrastructure.Authorization;
 /// </summary>
 public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<User> _userRepository;
     private readonly ILogger<PermissionAuthorizationHandler> _logger;
 
-    public PermissionAuthorizationHandler(IUnitOfWork uow, ILogger<PermissionAuthorizationHandler> logger)
+    public PermissionAuthorizationHandler(IRepository<User> userRepository, ILogger<PermissionAuthorizationHandler> logger)
     {
-        _uow = uow;
+        _userRepository = userRepository;
         _logger = logger;
     }
 
@@ -38,7 +38,7 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         try
         {
             // Get the user with their role and role's permissions
-            var user = await _uow.Users.Query()
+            var user = await _userRepository.Query()
                 .Include(u => u.Role)
                 .ThenInclude(r => r.Permissions)
                 .FirstOrDefaultAsync(u => u.Id == userId);

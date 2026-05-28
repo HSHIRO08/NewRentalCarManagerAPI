@@ -16,20 +16,32 @@ public interface IAuthService
 
 public class AuthService : IAuthService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<User> _userRepository;
+    private readonly IRepository<Role> _roleRepository;
+    private readonly IRepository<RefreshToken> _refreshTokenRepository;
+    private readonly AppDbContext _context;
     private readonly IPasswordHasher _hasher;
     private readonly ITokenService _tokenService;
 
-    public AuthService(IUnitOfWork uow, IPasswordHasher hasher, ITokenService tokenService)
+    public AuthService(
+        IRepository<User> userRepository,
+        IRepository<Role> roleRepository,
+        IRepository<RefreshToken> refreshTokenRepository,
+        AppDbContext context,
+        IPasswordHasher hasher,
+        ITokenService tokenService)
     {
-        _uow = uow;
+        _userRepository = userRepository;
+        _roleRepository = roleRepository;
+        _refreshTokenRepository = refreshTokenRepository;
+        _context = context;
         _hasher = hasher;
         _tokenService = tokenService;
     }
 
     public async Task<TokenDto> LoginAsync(LoginDto dto)
     {
-        var user = await _uow.Users.Query()
+        var user = await _userRepository.Query()
             .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.Phone == dto.Phone)
             ?? throw new ArgumentException("Invalid phone or password");
@@ -48,10 +60,10 @@ public class AuthService : IAuthService
 
     public async Task<TokenDto> RegisterAsync(RegisterDto dto)
     {
-        var exists = await _uow.Users.Query().AnyAsync(u => u.Phone == dto.Phone);
+        var exists = await _userRepository.Query().AnyAsync(u => u.Phone == dto.Phone);
         if (exists) throw new InvalidOperationException("Phone already registered");
 
-        var defaultRole = await _uow.Roles.Query().FirstOrDefaultAsync(r => r.Name == "renter")
+        var defaultRole = await _roleRepository.Query().FirstOrDefaultAsync(r => r.Name == "renter")
             ?? throw new InvalidOperationException("Default role 'renter' not found");
 
         var user = new User
@@ -65,10 +77,10 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-        await _uow.Users.AddAsync(user);
-        await _uow.SaveChangesAsync();
+        await _userRepository.AddAsync(user);
+        await _context.SaveChangesAsync();
 
-        user = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == user.Id)
+        user = await _userRepository.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == user.Id)
             ?? throw new InvalidOperationException("Could not load registered user");
         return await GenerateTokensAsync(user);
     }
@@ -76,7 +88,7 @@ public class AuthService : IAuthService
     public async Task<TokenDto> RefreshAsync(RefreshTokenRequestDto dto)
     {
         var hash = HashToken(dto.RefreshToken);
-        var stored = await _uow.RefreshTokens.Query()
+        var stored = await _refreshTokenRepository.Query()
             .Include(r => r.User).ThenInclude(u => u.Role)
             .FirstOrDefaultAsync(r => r.TokenHash == hash && r.RevokedAt == null)
             ?? throw new ArgumentException("Invalid refresh token");
@@ -101,8 +113,7 @@ public class AuthService : IAuthService
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
         };
-        await _uow.RefreshTokens.AddAsync(refreshEntity);
-        await _uow.SaveChangesAsync();
+        await _refreshTokenRepository.AddAsync(refreshEntity);
 
         return new TokenDto { AccessToken = accessToken, RefreshToken = refreshTokenRaw };
     }

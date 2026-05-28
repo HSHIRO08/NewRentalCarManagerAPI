@@ -1,4 +1,4 @@
-using NewRentalCarManagerAPI.Domain.Interfaces;
+using NewRentalCarManagerAPI.Models;
 
 namespace NewRentalCarManagerAPI.Middleware;
 
@@ -20,13 +20,13 @@ public class UnitOfWorkCommitMiddleware
             return;
         }
 
-        var unitOfWork = context.RequestServices.GetService<IUnitOfWork>();
-        if (unitOfWork is null)
+        var dbContext = context.RequestServices.GetService<AppDbContext>();
+        if (dbContext is null)
         {
             return;
         }
 
-        await unitOfWork.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
     }
 
     private static bool ShouldCommit(HttpContext context)

@@ -18,18 +18,18 @@ public interface IPenaltyService
 
 public class PenaltyService : IPenaltyService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Penalty> _penaltyRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<PenaltyService> _logger;
 
-    public PenaltyService(IUnitOfWork uow, IMapper mapper, ILogger<PenaltyService> logger)
+    public PenaltyService(IRepository<Penalty> penaltyRepository, IMapper mapper, ILogger<PenaltyService> logger)
     {
-        _uow = uow;
+        _penaltyRepository = penaltyRepository;
         _mapper = mapper;
         _logger = logger;
     }
 
-    private IQueryable<Penalty> BaseQuery() => _uow.Penalties.Query()
+    private IQueryable<Penalty> BaseQuery() => _penaltyRepository.Query()
         .Include(p => p.ChargedToNavigation);
 
     public async Task<DataResult> GetByBookingAsync(Guid bookingId, OpsListInput input)
@@ -77,7 +77,7 @@ public class PenaltyService : IPenaltyService
                 EvidenceUrl = dto.EvidenceUrl,
                 CreatedAt = DateTime.UtcNow
             };
-            await _uow.Penalties.AddAsync(entity);
+            await _penaltyRepository.AddAsync(entity);
             var created = await BaseQuery().FirstOrDefaultAsync(p => p.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create penalty failed.");
             return DataResult.ResultSuccess(_mapper.Map<PenaltyDto>(created), "Insert success!", statusCode: 201);

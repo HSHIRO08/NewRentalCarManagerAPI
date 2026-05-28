@@ -21,13 +21,15 @@ public class DepositService : IDepositService
     private const string DepositNote = "deposit";
     private const string DepositRefundNote = "deposit_refund";
 
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Booking> _bookingRepository;
+    private readonly IRepository<Transaction> _transactionRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<DepositService> _logger;
 
-    public DepositService(IUnitOfWork uow, IMapper mapper, ILogger<DepositService> logger)
+    public DepositService(IRepository<Booking> bookingRepository, IRepository<Transaction> transactionRepository, IMapper mapper, ILogger<DepositService> logger)
     {
-        _uow = uow;
+        _bookingRepository = bookingRepository;
+        _transactionRepository = transactionRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -36,7 +38,7 @@ public class DepositService : IDepositService
     {
         try
         {
-            var booking = await _uow.Bookings.Query()
+            var booking = await _bookingRepository.Query()
                 .Include(b => b.Transactions)
                 .FirstOrDefaultAsync(b => b.Id == bookingId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Booking not found!");
@@ -55,7 +57,7 @@ public class DepositService : IDepositService
     {
         try
         {
-            var booking = await _uow.Bookings.Query()
+            var booking = await _bookingRepository.Query()
                 .Include(b => b.Transactions)
                 .FirstOrDefaultAsync(b => b.Id == bookingId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Booking not found!");
@@ -89,8 +91,7 @@ public class DepositService : IDepositService
                 PaidAt = now,
                 CreatedAt = now
             };
-            await _uow.Transactions.AddAsync(tx);
-            await _uow.SaveChangesAsync();
+            await _transactionRepository.AddAsync(tx);
 
             return DataResult.ResultSuccess(BuildStatus(booking, tx), "Deposit thu thành công!", statusCode: 201);
         }
@@ -106,7 +107,7 @@ public class DepositService : IDepositService
     {
         try
         {
-            var booking = await _uow.Bookings.Query()
+            var booking = await _bookingRepository.Query()
                 .Include(b => b.Transactions)
                 .FirstOrDefaultAsync(b => b.Id == bookingId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Booking not found!");
@@ -149,8 +150,7 @@ public class DepositService : IDepositService
                 PaidAt = now,
                 CreatedAt = now
             };
-            await _uow.Transactions.AddAsync(tx);
-            await _uow.SaveChangesAsync();
+            await _transactionRepository.AddAsync(tx);
 
             // Reload for accurate status
             booking.Transactions.Add(tx);
@@ -191,3 +191,4 @@ public class DepositService : IDepositService
         };
     }
 }
+

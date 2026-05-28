@@ -16,18 +16,21 @@ namespace NewRentalCarManagerAPI.Controllers;
 public class PaymentsController : ControllerBase
 {
     private readonly IVnPayService _vnPay;
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Booking> _bookingRepository;
+    private readonly IRepository<Transaction> _transactionRepository;
     private readonly ILogger<PaymentsController> _logger;
     private readonly IConfiguration _config;
 
     public PaymentsController(
         IVnPayService vnPay,
-        IUnitOfWork uow,
+        IRepository<Booking> bookingRepository,
+        IRepository<Transaction> transactionRepository,
         ILogger<PaymentsController> logger,
         IConfiguration config)
     {
         _vnPay   = vnPay;
-        _uow     = uow;
+        _bookingRepository = bookingRepository;
+        _transactionRepository = transactionRepository;
         _logger  = logger;
         _config  = config;
     }
@@ -45,7 +48,7 @@ public class PaymentsController : ControllerBase
         if (!Guid.TryParse(userId, out var payerId))
             return Unauthorized(DataResult.ResultError(401, "Cannot identify user"));
 
-        var booking = await _uow.Bookings.Query()
+        var booking = await _bookingRepository.Query()
             .Include(b => b.Transactions)
             .FirstOrDefaultAsync(b => b.Id == dto.BookingId);
 
@@ -122,7 +125,7 @@ public class PaymentsController : ControllerBase
         if (!Guid.TryParse(result.TxnRef, out var bookingId))
             return Ok(new { RspCode = "01", Message = "Order not found" });
 
-        var booking = await _uow.Bookings.Query()
+        var booking = await _bookingRepository.Query()
             .Include(b => b.Transactions)
             .FirstOrDefaultAsync(b => b.Id == bookingId);
 
@@ -151,7 +154,7 @@ public class PaymentsController : ControllerBase
         if (!Guid.TryParse(userId, out var requesterId))
             return Unauthorized(DataResult.ResultError(401, "Cannot identify user"));
 
-        var booking = await _uow.Bookings.Query()
+        var booking = await _bookingRepository.Query()
             .Include(b => b.Transactions).ThenInclude(t => t.Payer)
             .FirstOrDefaultAsync(b => b.Id == bookingId);
 
@@ -185,7 +188,7 @@ public class PaymentsController : ControllerBase
     // ──────────────────────────────────────────────
     private async Task RecordPaymentAsync(Guid bookingId, VnPayReturnResult result)
     {
-        var booking = await _uow.Bookings.Query()
+        var booking = await _bookingRepository.Query()
             .Include(b => b.Transactions)
             .FirstOrDefaultAsync(b => b.Id == bookingId);
         if (booking is null) return;
@@ -217,7 +220,7 @@ public class PaymentsController : ControllerBase
                                ? "VNPay thanh toán thành công"
                                : $"VNPay thất bại (mã {result.ResponseCode})"
         };
-        await _uow.Transactions.AddAsync(tx);
+        await _transactionRepository.AddAsync(tx);
 
         if (result.IsSuccess && booking.Status == BookingStatus.Pending)
         {

@@ -21,13 +21,13 @@ public interface IPromotionService
 
 public class PromotionService : IPromotionService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Promotion> _promotionRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<PromotionService> _logger;
 
-    public PromotionService(IUnitOfWork uow, IMapper mapper, ILogger<PromotionService> logger)
+    public PromotionService(IRepository<Promotion> promotionRepository, IMapper mapper, ILogger<PromotionService> logger)
     {
-        _uow = uow;
+        _promotionRepository = promotionRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -36,7 +36,7 @@ public class PromotionService : IPromotionService
     {
         try
         {
-            var items = await _uow.Promotions.Query().ProjectTo<PromotionDto>(_mapper.ConfigurationProvider).ToListAsync();
+            var items = await _promotionRepository.Query().ProjectTo<PromotionDto>(_mapper.ConfigurationProvider).ToListAsync();
             return DataResult.ResultSuccess(items, "Get success!", items.Count);
         }
         catch (Exception e)
@@ -50,7 +50,7 @@ public class PromotionService : IPromotionService
     {
         try
         {
-            var entity = await _uow.Promotions.GetByIdAsync(id)
+            var entity = await _promotionRepository.GetByIdAsync(id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Promotion not found!");
             return DataResult.ResultSuccess(_mapper.Map<PromotionDto>(entity), "Get success!");
         }
@@ -65,7 +65,7 @@ public class PromotionService : IPromotionService
     {
         try
         {
-            var entity = await _uow.Promotions.Query().FirstOrDefaultAsync(p => p.Code == code && p.IsActive)
+            var entity = await _promotionRepository.Query().FirstOrDefaultAsync(p => p.Code == code && p.IsActive)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Promotion not found!");
             return DataResult.ResultSuccess(_mapper.Map<PromotionDto>(entity), "Get success!");
         }
@@ -92,7 +92,7 @@ public class PromotionService : IPromotionService
                 ValidTo = dto.ValidTo,
                 IsActive = true
             };
-            await _uow.Promotions.AddAsync(entity);
+            await _promotionRepository.AddAsync(entity);
             return DataResult.ResultSuccess(_mapper.Map<PromotionDto>(entity), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
@@ -106,7 +106,7 @@ public class PromotionService : IPromotionService
     {
         try
         {
-            var entity = await _uow.Promotions.GetByIdAsync(id)
+            var entity = await _promotionRepository.GetByIdAsync(id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Promotion not found!");
             entity.DiscountValue = dto.DiscountValue;
             entity.MaxDiscountVnd = dto.MaxDiscountVnd;
@@ -128,9 +128,9 @@ public class PromotionService : IPromotionService
     {
         try
         {
-            var entity = await _uow.Promotions.GetByIdAsync(id)
+            var entity = await _promotionRepository.GetByIdAsync(id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Promotion not found!");
-            _uow.Promotions.Remove(entity);
+            _promotionRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)

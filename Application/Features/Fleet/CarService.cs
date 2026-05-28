@@ -23,14 +23,20 @@ public interface ICarService
 
 public class CarService : ICarService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Car> _carRepository;
+    private readonly IRepository<CarModel> _carModelRepository;
+    private readonly IRepository<Location> _locationRepository;
+    private readonly IRepository<CarPricing> _carPricingRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<CarService> _logger;
     private readonly ITenantProvider _tenantProvider;
 
-    public CarService(IUnitOfWork uow, IMapper mapper, ILogger<CarService> logger, ITenantProvider tenantProvider)
+    public CarService(IRepository<Car> carRepository, IRepository<CarModel> carModelRepository, IRepository<Location> locationRepository, IRepository<CarPricing> carPricingRepository, IMapper mapper, ILogger<CarService> logger, ITenantProvider tenantProvider)
     {
-        _uow = uow;
+        _carRepository = carRepository;
+        _carModelRepository = carModelRepository;
+        _locationRepository = locationRepository;
+        _carPricingRepository = carPricingRepository;
         _mapper = mapper;
         _logger = logger;
         _tenantProvider = tenantProvider;
@@ -38,7 +44,7 @@ public class CarService : ICarService
 
     private IQueryable<Car> FullQuery(int? tenantId = null)
     {
-        var q = _uow.Cars.Query()
+        var q = _carRepository.Query()
             .Include(c => c.Owner)
             .Include(c => c.Model).ThenInclude(m => m.Brand)
             .Include(c => c.Location)
@@ -48,7 +54,7 @@ public class CarService : ICarService
 
     private IQueryable<Car> FreshQuery(int? tenantId = null)
     {
-        var q = _uow.Cars.Query().AsNoTracking()
+        var q = _carRepository.Query().AsNoTracking()
             .Include(c => c.Owner)
             .Include(c => c.Model).ThenInclude(m => m.Brand)
             .Include(c => c.Location)
@@ -122,7 +128,7 @@ public class CarService : ICarService
             var modelId = dto.ModelId ?? Guid.Empty;
             if (modelId == Guid.Empty && !string.IsNullOrWhiteSpace(dto.ModelName))
             {
-                var model = await _uow.CarModels.Query()
+                var model = await _carModelRepository.Query()
                     .Include(m => m.Brand)
                     .FirstOrDefaultAsync(m => m.Name == dto.ModelName
                         && m.TenantId == tenantId
@@ -133,7 +139,7 @@ public class CarService : ICarService
             }
             else if (modelId != Guid.Empty)
             {
-                var modelExists = await _uow.CarModels.Query().AnyAsync(m => m.Id == modelId && m.TenantId == tenantId);
+                var modelExists = await _carModelRepository.Query().AnyAsync(m => m.Id == modelId && m.TenantId == tenantId);
                 if (!modelExists)
                 {
                     throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Car model not found.");
@@ -143,7 +149,7 @@ public class CarService : ICarService
             var locationId = dto.LocationId ?? Guid.Empty;
             if (locationId == Guid.Empty && !string.IsNullOrWhiteSpace(dto.Location))
             {
-                var location = await _uow.Locations.Query()
+                var location = await _locationRepository.Query()
                     .FirstOrDefaultAsync(l => (l.City == dto.Location || l.Address == dto.Location) && l.TenantId == tenantId);
                 if (location is null)
                 {
@@ -154,13 +160,13 @@ public class CarService : ICarService
                         IsActive = true,
                         TenantId = tenantId
                     };
-                    await _uow.Locations.AddAsync(location);
+                    await _locationRepository.AddAsync(location);
                 }
                 locationId = location.Id;
             }
             else if (locationId != Guid.Empty)
             {
-                var locationExists = await _uow.Locations.Query().AnyAsync(l => l.Id == locationId && l.TenantId == tenantId);
+                var locationExists = await _locationRepository.Query().AnyAsync(l => l.Id == locationId && l.TenantId == tenantId);
                 if (!locationExists)
                 {
                     throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Location not found.");
@@ -190,7 +196,7 @@ public class CarService : ICarService
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-            await _uow.Cars.AddAsync(entity);
+            await _carRepository.AddAsync(entity);
 
             if (dto.PricePerDay > 0)
             {
@@ -203,7 +209,7 @@ public class CarService : ICarService
                     IsActive = true,
                     RentalType = RentalType.Daily
                 };
-                await _uow.CarPricings.AddAsync(pricing);
+                await _carPricingRepository.AddAsync(pricing);
             }
 
             var created = await FreshQuery(tenantId).FirstOrDefaultAsync(c => c.Id == entity.Id)
@@ -228,18 +234,18 @@ public class CarService : ICarService
             var locationId = dto.LocationId ?? Guid.Empty;
             if (locationId == Guid.Empty && !string.IsNullOrWhiteSpace(dto.Location))
             {
-                var location = await _uow.Locations.Query()
+                var location = await _locationRepository.Query()
                     .FirstOrDefaultAsync(l => (l.City == dto.Location || l.Address == dto.Location) && l.TenantId == tenantId);
                 if (location is null)
                 {
                     location = new Location { Id = Guid.NewGuid(), City = dto.Location, IsActive = true, TenantId = tenantId };
-                    await _uow.Locations.AddAsync(location);
+                    await _locationRepository.AddAsync(location);
                 }
                 locationId = location.Id;
             }
             else if (locationId != Guid.Empty)
             {
-                var locationExists = await _uow.Locations.Query().AnyAsync(l => l.Id == locationId && l.TenantId == tenantId);
+                var locationExists = await _locationRepository.Query().AnyAsync(l => l.Id == locationId && l.TenantId == tenantId);
                 if (!locationExists)
                 {
                     throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Location not found.");
@@ -283,7 +289,7 @@ public class CarService : ICarService
 
             if (dto.PricePerDay.HasValue && dto.PricePerDay.Value > 0)
             {
-                var pricing = await _uow.CarPricings.Query()
+                var pricing = await _carPricingRepository.Query()
                     .FirstOrDefaultAsync(p => p.CarId == id && p.IsActive && p.TenantId == tenantId);
                 if (pricing is not null)
                 {
@@ -300,7 +306,7 @@ public class CarService : ICarService
                         IsActive = true,
                         RentalType = RentalType.Daily
                     };
-                    await _uow.CarPricings.AddAsync(newPricing);
+                    await _carPricingRepository.AddAsync(newPricing);
                 }
             }
 
@@ -346,9 +352,9 @@ public class CarService : ICarService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.Cars.Query().FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId)
+            var entity = await _carRepository.Query().FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Car not found!");
-            _uow.Cars.Remove(entity);
+            _carRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)

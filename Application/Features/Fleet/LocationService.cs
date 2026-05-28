@@ -20,14 +20,14 @@ public interface ILocationService
 
 public class LocationService : ILocationService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Location> _locationRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<LocationService> _logger;
     private readonly ITenantProvider _tenantProvider;
 
-    public LocationService(IUnitOfWork uow, IMapper mapper, ILogger<LocationService> logger, ITenantProvider tenantProvider)
+    public LocationService(IRepository<Location> locationRepository, IMapper mapper, ILogger<LocationService> logger, ITenantProvider tenantProvider)
     {
-        _uow = uow;
+        _locationRepository = locationRepository;
         _mapper = mapper;
         _logger = logger;
         _tenantProvider = tenantProvider;
@@ -38,7 +38,7 @@ public class LocationService : ILocationService
         try
         {
             var tenantId = _tenantProvider.TryGetTenantId();
-            var query = _uow.Locations.Query();
+            var query = _locationRepository.Query();
             if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
             var totalCount = await query.CountAsync();
             var items = await query
@@ -60,7 +60,7 @@ public class LocationService : ILocationService
         try
         {
             var tenantId = _tenantProvider.TryGetTenantId();
-            var query = _uow.Locations.Query().Where(x => x.Id == id);
+            var query = _locationRepository.Query().Where(x => x.Id == id);
             if (tenantId.HasValue) query = query.Where(x => x.TenantId == tenantId.Value);
             var entity = await query.FirstOrDefaultAsync()
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Location not found!");
@@ -81,7 +81,7 @@ public class LocationService : ILocationService
             var entity = _mapper.Map<Location>(dto);
             entity.IsActive = true;
             entity.TenantId = tenantId;
-            await _uow.Locations.AddAsync(entity);
+            await _locationRepository.AddAsync(entity);
             return DataResult.ResultSuccess(_mapper.Map<LocationDto>(entity), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
@@ -96,7 +96,7 @@ public class LocationService : ILocationService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.Locations.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var entity = await _locationRepository.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Location not found!");
             _mapper.Map(dto, entity);
             entity.TenantId = tenantId;
@@ -114,9 +114,9 @@ public class LocationService : ILocationService
         try
         {
             var tenantId = _tenantProvider.GetTenantIdOrThrow();
-            var entity = await _uow.Locations.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
+            var entity = await _locationRepository.Query().FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Location not found!");
-            _uow.Locations.Remove(entity);
+            _locationRepository.Remove(entity);
             return DataResult.ResultSuccess(true, "Delete success!");
         }
         catch (Exception e)

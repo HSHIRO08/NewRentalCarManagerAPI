@@ -19,18 +19,18 @@ public interface IDamageReportService
 
 public class DamageReportService : IDamageReportService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<DamageReport> _damageReportRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<DamageReportService> _logger;
 
-    public DamageReportService(IUnitOfWork uow, IMapper mapper, ILogger<DamageReportService> logger)
+    public DamageReportService(IRepository<DamageReport> damageReportRepository, IMapper mapper, ILogger<DamageReportService> logger)
     {
-        _uow = uow;
+        _damageReportRepository = damageReportRepository;
         _mapper = mapper;
         _logger = logger;
     }
 
-    private IQueryable<DamageReport> BaseQuery() => _uow.DamageReports.Query()
+    private IQueryable<DamageReport> BaseQuery() => _damageReportRepository.Query()
         .Include(d => d.ReportedByNavigation);
 
     public async Task<DataResult> GetByBookingAsync(Guid bookingId, OpsListInput input)
@@ -78,7 +78,7 @@ public class DamageReportService : IDamageReportService
                 RepairCostVnd = dto.RepairCostVnd,
                 CreatedAt = DateTime.UtcNow
             };
-            await _uow.DamageReports.AddAsync(entity);
+            await _damageReportRepository.AddAsync(entity);
             var created = await BaseQuery().FirstOrDefaultAsync(d => d.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create damage report failed.");
             return DataResult.ResultSuccess(_mapper.Map<DamageReportDto>(created), "Insert success!", statusCode: 201);

@@ -46,7 +46,7 @@ public class BookingEmailBackgroundService : BackgroundService, IBookingEmailQue
             {
                 using var scope = _scopeFactory.CreateScope();
                 var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-                var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var notificationLogRepository = scope.ServiceProvider.GetRequiredService<IRepository<NotificationLog>>();
 
                 var emailData = new BookingEmailData
                 {
@@ -72,7 +72,7 @@ public class BookingEmailBackgroundService : BackgroundService, IBookingEmailQue
                     ErrorMsg = sent ? null : "SMTP send failed",
                     CreatedAt = job.PaidAt
                 };
-                await uow.NotificationLogs.AddAsync(log);
+                await notificationLogRepository.AddAsync(log);
 
                 _logger.LogInformation("Booking email for {BookingId}: {Status}", job.BookingId, sent ? "Sent" : "Failed");
             }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NewRentalCarManagerAPI.Common;
 using NewRentalCarManagerAPI.Domain.Interfaces;
 using NewRentalCarManagerAPI.Infrastructure.Authorization;
+using NewRentalCarManagerAPI.Models;
 
 namespace NewRentalCarManagerAPI.Controllers;
 
@@ -12,12 +13,16 @@ namespace NewRentalCarManagerAPI.Controllers;
 [Authorize]
 public class PermissionsController : ControllerBase
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<User> _userRepository;
+    private readonly IRepository<Role> _roleRepository;
+    private readonly IRepository<Permission> _permissionRepository;
     private readonly ILogger<PermissionsController> _logger;
 
-    public PermissionsController(IUnitOfWork uow, ILogger<PermissionsController> logger)
+    public PermissionsController(IRepository<User> userRepository, IRepository<Role> roleRepository, IRepository<Permission> permissionRepository, ILogger<PermissionsController> logger)
     {
-        _uow = uow;
+        _userRepository = userRepository;
+        _roleRepository = roleRepository;
+        _permissionRepository = permissionRepository;
         _logger = logger;
     }
 
@@ -33,11 +38,11 @@ public class PermissionsController : ControllerBase
         if (!Guid.TryParse(userIdClaim, out var userId))
             return Unauthorized(DataResult.ResultError(401, "Invalid user ID"));
 
-        var user = await _uow.Users.GetByIdAsync(userId);
+        var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
             return NotFound(DataResult.ResultError(404, "User not found"));
 
-        var role = await _uow.Roles.Query()
+        var role = await _roleRepository.Query()
             .Where(r => r.Id == user.RoleId)
             .Include(r => r.Permissions)
             .FirstOrDefaultAsync();
@@ -68,7 +73,7 @@ public class PermissionsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllPermissions()
     {
-        var permissions = await _uow.Permissions.GetAllAsync();
+        var permissions = await _permissionRepository.GetAllAsync();
         
         var grouped = permissions
             .GroupBy(p => p.Resource)
@@ -94,7 +99,7 @@ public class PermissionsController : ControllerBase
     [HttpGet("role/{roleName}")]
     public async Task<IActionResult> GetRolePermissions(string roleName)
     {
-        var role = await _uow.Roles.Query()
+        var role = await _roleRepository.Query()
             .Where(r => r.Name == roleName)
             .Include(r => r.Permissions)
             .FirstOrDefaultAsync();
@@ -129,7 +134,7 @@ public class PermissionsController : ControllerBase
             string.IsNullOrWhiteSpace(request.Action))
             return BadRequest(DataResult.ResultError(400, "RoleName, Resource, and Action are required"));
 
-        var role = await _uow.Roles.Query()
+        var role = await _roleRepository.Query()
             .Where(r => r.Name == request.RoleName)
             .Include(r => r.Permissions)
             .FirstOrDefaultAsync();
@@ -137,7 +142,7 @@ public class PermissionsController : ControllerBase
         if (role == null)
             return NotFound(DataResult.ResultError(404, $"Role '{request.RoleName}' not found"));
 
-        var permission = await _uow.Permissions.Query()
+        var permission = await _permissionRepository.Query()
             .FirstOrDefaultAsync(p => p.Resource == request.Resource && p.Action == request.Action);
 
         if (permission == null)
@@ -165,7 +170,7 @@ public class PermissionsController : ControllerBase
             string.IsNullOrWhiteSpace(request.Action))
             return BadRequest(DataResult.ResultError(400, "RoleName, Resource, and Action are required"));
 
-        var role = await _uow.Roles.Query()
+        var role = await _roleRepository.Query()
             .Where(r => r.Name == request.RoleName)
             .Include(r => r.Permissions)
             .FirstOrDefaultAsync();

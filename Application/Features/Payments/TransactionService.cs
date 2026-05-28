@@ -11,18 +11,18 @@ namespace NewRentalCarManagerAPI.Application.Features.Payments;
 
 public class TransactionService 
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IRepository<Transaction> _transactionRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<TransactionService> _logger;
 
-    public TransactionService(IUnitOfWork uow, IMapper mapper, ILogger<TransactionService> logger)
+    public TransactionService(IRepository<Transaction> transactionRepository, IMapper mapper, ILogger<TransactionService> logger)
     {
-        _uow = uow;
+        _transactionRepository = transactionRepository;
         _mapper = mapper;
         _logger = logger;
     }
 
-    private IQueryable<Transaction> BaseQuery() => _uow.Transactions.Query()
+    private IQueryable<Transaction> BaseQuery() => _transactionRepository.Query()
         .Include(t => t.Payer);
 
     public async Task<DataResult> GetByBookingAsync(Guid bookingId, PaymentListInput input)
@@ -88,7 +88,7 @@ public class TransactionService
                 Note = dto.Note,
                 CreatedAt = DateTime.UtcNow
             };
-            await _uow.Transactions.AddAsync(entity);
+            await _transactionRepository.AddAsync(entity);
             var created = await BaseQuery().FirstOrDefaultAsync(t => t.Id == entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create transaction failed.");
             return DataResult.ResultSuccess(_mapper.Map<TransactionDto>(created), "Insert success!", statusCode: 201);
