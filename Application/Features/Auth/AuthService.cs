@@ -66,6 +66,7 @@ public class AuthService : IAuthService
             UpdatedAt = DateTime.UtcNow
         };
         await _uow.Users.AddAsync(user);
+        await _uow.SaveChangesAsync();
 
         user = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == user.Id)
             ?? throw new InvalidOperationException("Could not load registered user");
@@ -90,7 +91,7 @@ public class AuthService : IAuthService
 
     private async Task<TokenDto> GenerateTokensAsync(User user)
     {
-        var accessToken = _tokenService.GenerateAccessToken(user.Id, user.Role.Name);
+        var accessToken = _tokenService.GenerateAccessToken(user.Id, user.Role.Name, user.TenantId);
         var refreshTokenRaw = _tokenService.GenerateRefreshToken();
 
         var refreshEntity = new RefreshToken
@@ -101,6 +102,7 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow
         };
         await _uow.RefreshTokens.AddAsync(refreshEntity);
+        await _uow.SaveChangesAsync();
 
         return new TokenDto { AccessToken = accessToken, RefreshToken = refreshTokenRaw };
     }

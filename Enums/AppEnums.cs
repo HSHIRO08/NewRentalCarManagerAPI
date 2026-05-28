@@ -174,3 +174,23 @@ public enum PaymentStatus
     Failed = 2,
     Refunded = 3
 }
+
+public enum KycStatus
+{
+    [PgName("none")]
+    None = 0,
+    [PgName("pending")]
+    Pending = 1,
+    [PgName("approved")]
+    Approved = 2,
+    [PgName("rejected")]
+    Rejected = 3
+}
+
+public enum HandoverType
+{
+    [PgName("check_in")]
+    CheckIn = 0,
+    [PgName("check_out")]
+    CheckOut = 1
+}

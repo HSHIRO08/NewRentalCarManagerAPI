@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NewRentalCarManagerAPI.Enums;
 using NewRentalCarManagerAPI.Models;
@@ -14,9 +15,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NewRentalCarManagerAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260508103015_AddKycToUser")]
+    partial class AddKycToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,7 +27,6 @@ namespace NewRentalCarManagerAPI.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "booking", "booking_status", new[] { "pending", "confirmed", "active", "completed", "cancelled", "disputed" });
-            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "booking", "handover_type", new[] { "check_in", "check_out" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "booking", "promotion_type", new[] { "percentage", "fixed_amount" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "booking", "saga_status", new[] { "started", "succeeded", "failed", "compensating" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "fleet", "car_status", new[] { "available", "rented", "maintenance", "inactive" });
@@ -646,58 +648,6 @@ namespace NewRentalCarManagerAPI.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("external_logins", "identity");
-                });
-
-            modelBuilder.Entity("NewRentalCarManagerAPI.Models.HandoverRecord", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<Guid>("BookingId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("booking_id");
-
-                    b.Property<int?>("FuelPercent")
-                        .HasColumnType("integer")
-                        .HasColumnName("fuel_percent");
-
-                    b.Property<List<string>>("ImageUrls")
-                        .HasColumnType("text[]")
-                        .HasColumnName("image_urls");
-
-                    b.Property<int?>("MileageKm")
-                        .HasColumnType("integer")
-                        .HasColumnName("mileage_km");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<DateTime>("RecordedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("recorded_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<Guid>("RecordedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("recorded_by");
-
-                    b.Property<HandoverType>("Type")
-                        .HasColumnType("booking.handover_type")
-                        .HasColumnName("type");
-
-                    b.HasKey("Id")
-                        .HasName("handover_records_pkey");
-
-                    b.HasIndex("RecordedBy");
-
-                    b.HasIndex(new[] { "BookingId" }, "handover_records_booking_id_idx");
-
-                    b.ToTable("handover_records", "booking");
                 });
 
             modelBuilder.Entity("NewRentalCarManagerAPI.Models.Location", b =>
@@ -1426,12 +1376,6 @@ namespace NewRentalCarManagerAPI.Migrations
                         .HasColumnType("identity.user_status")
                         .HasColumnName("status");
 
-                    b.Property<int>("TenantId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(1)
-                        .HasColumnName("tenant_id");
-
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -1642,27 +1586,6 @@ namespace NewRentalCarManagerAPI.Migrations
                         .HasConstraintName("external_logins_user_id_fkey");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("NewRentalCarManagerAPI.Models.HandoverRecord", b =>
-                {
-                    b.HasOne("NewRentalCarManagerAPI.Models.Booking", "Booking")
-                        .WithMany()
-                        .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("handover_records_booking_id_fkey");
-
-                    b.HasOne("NewRentalCarManagerAPI.Models.User", "RecordedByUser")
-                        .WithMany()
-                        .HasForeignKey("RecordedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("handover_records_recorded_by_fkey");
-
-                    b.Navigation("Booking");
-
-                    b.Navigation("RecordedByUser");
                 });
 
             modelBuilder.Entity("NewRentalCarManagerAPI.Models.NewsArticle", b =>

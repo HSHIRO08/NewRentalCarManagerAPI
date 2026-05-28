@@ -60,6 +60,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
+    public virtual DbSet<HandoverRecord> HandoverRecords { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
@@ -91,6 +93,8 @@ public partial class AppDbContext : DbContext
             .HasPostgresEnum<PaymentDirection>("payment", "payment_direction")
             .HasPostgresEnum<PaymentMethod>("payment", "payment_method")
             .HasPostgresEnum<PaymentStatus>("payment", "payment_status")
+            .HasPostgresEnum<KycStatus>("identity", "kyc_status")
+            .HasPostgresEnum<HandoverType>("booking", "handover_type")
             .HasPostgresExtension("pgcrypto");
 
         modelBuilder.Entity<ApiKey>(entity =>
@@ -870,12 +874,22 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("referral_code");
             entity.Property(e => e.ReferredById).HasColumnName("referred_by_id");
             entity.Property(e => e.RoleId).HasColumnName("role_id");
+            entity.Property(e => e.TenantId)
+                .HasColumnName("tenant_id")
+                .HasDefaultValue(1);
             entity.Property(e => e.UpdatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("updated_at");
             entity.Property(e => e.Status)
                 .HasColumnName("status")
                 .HasColumnType("identity.user_status");
+            entity.Property(e => e.IdentityCardUrl).HasColumnName("identity_card_url");
+            entity.Property(e => e.DriverLicenseUrl).HasColumnName("driver_license_url");
+            entity.Property(e => e.KycStatus)
+                .HasColumnName("kyc_status")
+                .HasColumnType("identity.kyc_status")
+                .HasDefaultValue(KycStatus.None);
+            entity.Property(e => e.KycRejectReason).HasColumnName("kyc_reject_reason");
 
             entity.HasOne(d => d.ReferredBy).WithMany(p => p.InverseReferredBy)
                 .HasForeignKey(d => d.ReferredById)
@@ -911,6 +925,34 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(e => e.AuthorId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("news_articles_author_id_fkey");
+        });
+
+        modelBuilder.Entity<HandoverRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("handover_records_pkey");
+            entity.ToTable("handover_records", "booking");
+
+            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(e => e.BookingId).HasColumnName("booking_id");
+            entity.Property(e => e.Type).HasColumnName("type").HasColumnType("booking.handover_type");
+            entity.Property(e => e.MileageKm).HasColumnName("mileage_km");
+            entity.Property(e => e.FuelPercent).HasColumnName("fuel_percent");
+            entity.Property(e => e.Notes).HasColumnName("notes");
+            entity.Property(e => e.ImageUrls).HasColumnName("image_urls").HasColumnType("text[]");
+            entity.Property(e => e.RecordedBy).HasColumnName("recorded_by");
+            entity.Property(e => e.RecordedAt).HasColumnName("recorded_at").HasDefaultValueSql("now()");
+
+            entity.HasIndex(e => e.BookingId, "handover_records_booking_id_idx");
+
+            entity.HasOne(d => d.Booking).WithMany()
+                .HasForeignKey(d => d.BookingId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("handover_records_booking_id_fkey");
+
+            entity.HasOne(d => d.RecordedByUser).WithMany()
+                .HasForeignKey(d => d.RecordedBy)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("handover_records_recorded_by_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

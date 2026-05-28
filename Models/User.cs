@@ -20,6 +20,8 @@ public partial class User
 
     public Guid RoleId { get; set; }
 
+    public int TenantId { get; set; } = 1;
+
     public string? ReferralCode { get; set; }
 
     public Guid? ReferredById { get; set; }
@@ -29,6 +31,14 @@ public partial class User
     public DateTime UpdatedAt { get; set; }
 
     public UserStatus Status { get; set; }
+
+    public string? IdentityCardUrl { get; set; }
+
+    public string? DriverLicenseUrl { get; set; }
+
+    public KycStatus KycStatus { get; set; }
+
+    public string? KycRejectReason { get; set; }
 
     public virtual ICollection<ApiKey> ApiKeys { get; set; } = new List<ApiKey>();
 

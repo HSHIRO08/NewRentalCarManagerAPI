@@ -32,10 +32,11 @@ public class HttpTenantProvider : ITenantProvider
             return tenantFromClaim;
         }
 
-        var headerValue = context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
-        if (int.TryParse(headerValue, out var tenantFromHeader))
+        // Fall back to the default tenant for authenticated users whose token
+        // predates the tenantId claim being added to the JWT.
+        if (context.User.Identity?.IsAuthenticated == true)
         {
-            return tenantFromHeader;
+            return 1;
         }
 
         throw new UserFriendlyException((int)HttpStatusCode.BadRequest, "TenantId is required. Provide claim 'tenantId' or header 'X-Tenant-Id'.");
@@ -53,10 +54,6 @@ public class HttpTenantProvider : ITenantProvider
 
         if (int.TryParse(claimValue, out var tenantFromClaim))
             return tenantFromClaim;
-
-        var headerValue = context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
-        if (int.TryParse(headerValue, out var tenantFromHeader))
-            return tenantFromHeader;
 
         return null;
     }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NewRentalCarManagerAPI.Common;
 using NewRentalCarManagerAPI.Domain.Interfaces;
+using NewRentalCarManagerAPI.Enums;
 using NewRentalCarManagerAPI.Models;
 using System.Net;
 
@@ -16,6 +17,8 @@ public interface IUserService
     Task<DataResult> CreateAsync(CreateUserDto dto);
     Task<DataResult> UpdateAsync(Guid id, UpdateUserDto dto);
     Task<DataResult> DeleteAsync(Guid id);
+    Task<DataResult> SubmitKycAsync(Guid userId, SubmitKycDto dto);
+    Task<DataResult> ReviewKycAsync(Guid userId, ReviewKycDto dto);
 }
 
 public class UserService : IUserService
@@ -91,6 +94,8 @@ public class UserService : IUserService
             entity.Email = dto.Email;
             entity.FullName = dto.FullName;
             entity.AvatarUrl = dto.AvatarUrl;
+            if (!string.IsNullOrEmpty(dto.Status) && Enum.TryParse<UserStatus>(dto.Status, true, out var parsedStatus))
+                entity.Status = parsedStatus;
             entity.UpdatedAt = DateTime.UtcNow;
             return DataResult.ResultSuccess(_mapper.Map<UserDto>(entity), "Update success!");
         }
@@ -113,6 +118,62 @@ public class UserService : IUserService
         catch (Exception e)
         {
             _logger.LogError(e, "Failed to delete user {Id}", id);
+            throw;
+        }
+    }
+
+    public async Task<DataResult> SubmitKycAsync(Guid userId, SubmitKycDto dto)
+    {
+        try
+        {
+            var entity = await _uow.Users.GetByIdAsync(userId)
+                ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "User not found!");
+
+            if (entity.KycStatus == KycStatus.Approved)
+                throw new UserFriendlyException((int)HttpStatusCode.Conflict, "KYC đã được duyệt, không thể nộp lại.");
+
+            entity.IdentityCardUrl = dto.IdentityCardUrl;
+            entity.DriverLicenseUrl = dto.DriverLicenseUrl;
+            entity.KycStatus = KycStatus.Pending;
+            entity.KycRejectReason = null;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _uow.SaveChangesAsync();
+
+            var updated = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
+            return DataResult.ResultSuccess(_mapper.Map<UserDto>(updated), "KYC submitted successfully!");
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Failed to submit KYC for user {UserId}", userId);
+            throw;
+        }
+    }
+
+    public async Task<DataResult> ReviewKycAsync(Guid userId, ReviewKycDto dto)
+    {
+        try
+        {
+            var entity = await _uow.Users.GetByIdAsync(userId)
+                ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "User not found!");
+
+            var action = dto.Action.Trim().ToLowerInvariant();
+            if (action != "approve" && action != "reject")
+                throw new UserFriendlyException((int)HttpStatusCode.BadRequest, "Action must be 'approve' or 'reject'.");
+
+            if (entity.KycStatus != KycStatus.Pending)
+                throw new UserFriendlyException((int)HttpStatusCode.Conflict, "Chỉ có thể review khi KYC đang Pending.");
+
+            entity.KycStatus = action == "approve" ? KycStatus.Approved : KycStatus.Rejected;
+            entity.KycRejectReason = action == "reject" ? dto.RejectReason : null;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _uow.SaveChangesAsync();
+
+            var updated = await _uow.Users.Query().Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == userId);
+            return DataResult.ResultSuccess(_mapper.Map<UserDto>(updated), "KYC reviewed!");
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Failed to review KYC for user {UserId}", userId);
             throw;
         }
     }

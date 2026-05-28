@@ -12,6 +12,10 @@ public class UserDto
     public string Status { get; set; } = null!;
     public string? ReferralCode { get; set; }
     public Guid? ReferredById { get; set; }
+    public string KycStatus { get; set; } = "None";
+    public string? IdentityCardUrl { get; set; }
+    public string? DriverLicenseUrl { get; set; }
+    public string? KycRejectReason { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -33,4 +37,19 @@ public class UpdateUserDto
     public string? Email { get; set; }
     public string FullName { get; set; } = null!;
     public string? AvatarUrl { get; set; }
+    /// <summary>Optional: Active | Suspended | Banned | Pending</summary>
+    public string? Status { get; set; }
+}
+
+public class SubmitKycDto
+{
+    public string IdentityCardUrl { get; set; } = null!;
+    public string DriverLicenseUrl { get; set; } = null!;
+}
+
+public class ReviewKycDto
+{
+    /// <summary>approve | reject</summary>
+    public string Action { get; set; } = null!;
+    public string? RejectReason { get; set; }
 }

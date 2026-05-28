@@ -44,6 +44,8 @@ dataSourceBuilder.MapEnum<PenaltyType>("ops.penalty_type");
 dataSourceBuilder.MapEnum<PaymentDirection>("payment.payment_direction");
 dataSourceBuilder.MapEnum<PaymentMethod>("payment.payment_method");
 dataSourceBuilder.MapEnum<PaymentStatus>("payment.payment_status");
+dataSourceBuilder.MapEnum<KycStatus>("identity.kyc_status");
+dataSourceBuilder.MapEnum<HandoverType>("booking.handover_type");
 
 var dataSource = dataSourceBuilder.Build();
 
@@ -64,6 +66,7 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddSingleton<BookingEmailBackgroundService>();
 builder.Services.AddSingleton<IBookingEmailQueue>(sp => sp.GetRequiredService<BookingEmailBackgroundService>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<BookingEmailBackgroundService>());
+builder.Services.AddHostedService<OverduePenaltyCronJob>();
 
 // ── Authorization ──
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
@@ -84,12 +87,14 @@ builder.Services.AddScoped<ICarPricingService, CarPricingService>();
 builder.Services.AddScoped<ICarAvailabilityBlockService, CarAvailabilityBlockService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IHandoverService, HandoverService>();
 builder.Services.AddScoped<IPromotionService, PromotionService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IDamageReportService, DamageReportService>();
 builder.Services.AddScoped<IPenaltyService, PenaltyService>();
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<OwnerPayoutService>();
+builder.Services.AddScoped<IDepositService, DepositService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 
 // ── JWT Authentication ──
@@ -163,6 +168,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<NewRentalCarManagerAPI.Middleware.UnitOfWorkCommitMiddleware>();
 app.MapControllers();
 
 app.Run();

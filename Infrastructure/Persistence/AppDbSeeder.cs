@@ -29,7 +29,8 @@ public static class AppDbSeeder
 
         string[] resources = ["users", "cars", "bookings", "promotions", "reviews",
                               "penalties", "damage_reports", "transactions", "owner_payouts",
-                              "car_brands", "car_models", "locations", "car_pricing"];
+                              "car_brands", "car_models", "locations", "car_pricing",
+                              "permissions", "roles"];
         string[] actions = ["read", "create", "update", "delete"];
 
         foreach (var resource in resources)

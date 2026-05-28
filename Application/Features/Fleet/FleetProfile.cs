@@ -27,6 +27,28 @@ public class FleetProfile : Profile
         CreateMap<CarAvailabilityBlock, CarAvailabilityBlockDto>();
         CreateMap<CreateCarAvailabilityBlockDto, CarAvailabilityBlock>();
 
+        // UpdateCarDto → Car: only map simple scalar fields.
+        // Enums (Status/FuelType/TransmissionType), ImageUrls, LocationId,
+        // PricePerDay, TenantId and ManufactureYear are handled manually in CarService.
+        CreateMap<UpdateCarDto, Car>()
+            .ForMember(d => d.Color, opt => opt.MapFrom(s => s.Color))
+            .ForMember(d => d.MileageKm, opt => opt.MapFrom(s => s.MileageKm))
+            .ForMember(d => d.Description, opt => opt.MapFrom(s => s.Description))
+            .ForMember(d => d.HasIotDevice, opt => opt.MapFrom(s => s.HasIotDevice))
+            .ForMember(d => d.IotDeviceId, opt => opt.MapFrom(s => s.IotDeviceId))
+            .ForMember(d => d.LicensePlate, opt => opt.Condition(s => !string.IsNullOrWhiteSpace(s.LicensePlate)))
+            .ForMember(d => d.ManufactureYear, opt => opt.Condition(s => s.ManufactureYear.HasValue))
+            .ForMember(d => d.ManufactureYear, opt => opt.MapFrom(s => s.ManufactureYear!.Value))
+            .ForMember(d => d.Status, opt => opt.Ignore())
+            .ForMember(d => d.FuelType, opt => opt.Ignore())
+            .ForMember(d => d.TransmissionType, opt => opt.Ignore())
+            .ForMember(d => d.ImageUrls, opt => opt.Ignore())
+            .ForMember(d => d.LocationId, opt => opt.Ignore())
+            .ForMember(d => d.Location, opt => opt.Ignore())
+            .ForMember(d => d.TenantId, opt => opt.Ignore())
+            .ForMember(d => d.Features, opt => opt.MapFrom(s => s.Features))
+            .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+
         CreateMap<Car, CarDto>()
             .ForMember(d => d.OwnerName, opt => opt.MapFrom(s => s.Owner != null ? s.Owner.FullName : string.Empty))
             .ForMember(d => d.ModelName, opt => opt.MapFrom(s => s.Model != null ? s.Model.Name : string.Empty))

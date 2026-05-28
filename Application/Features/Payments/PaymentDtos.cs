@@ -51,3 +51,22 @@ public class CreateOwnerPayoutDto
     public DateOnly PeriodTo { get; set; }
     public string? BankAccount { get; set; }
 }
+
+// ───── Deposit ─────
+public class DepositStatusDto
+{
+    public Guid BookingId { get; set; }
+    public int DepositVnd { get; set; }
+    public bool IsCharged { get; set; }
+    public bool IsRefunded { get; set; }
+    public int? RefundedAmountVnd { get; set; }
+    public Guid? ChargeTransactionId { get; set; }
+    public Guid? RefundTransactionId { get; set; }
+}
+
+public class RefundDepositDto
+{
+    /// <summary>Amount to refund. Defaults to full DepositVnd when null.</summary>
+    public int? RefundAmountVnd { get; set; }
+    public string? Reason { get; set; }
+}

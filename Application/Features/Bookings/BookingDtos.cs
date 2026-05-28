@@ -68,6 +68,11 @@ public class UpdateBookingDto
     public string? Note { get; set; }
 }
 
+public class CancelBookingDto
+{
+    public string? CancelReason { get; set; }
+}
+
 // ───── Promotion ─────
 public class PromotionDto
 {

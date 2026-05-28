@@ -19,6 +19,7 @@ public interface IBookingService
     Task<DataResult> GetAllAsync(BookingListInput input);
     Task<DataResult> GetByIdAsync(Guid id);
     Task<DataResult> GetByRenterAsync(Guid renterId, BookingListInput input);
+    Task<DataResult> GetByOwnerAsync(Guid ownerId, BookingListInput input);
     Task<DataResult> GetByCarAsync(Guid carId, BookingListInput input);
     Task<DataResult> CreateAsync(Guid renterId, CreateBookingDto dto);
     Task<DataResult> QuickCreateAsync(Guid renterId, QuickCreateBookingDto dto);
@@ -26,6 +27,7 @@ public interface IBookingService
     Task<DataResult> DeleteAsync(Guid id);
     Task<DataResult> PayBookingAsync(Guid bookingId, Guid payerId);
     Task<DataResult> SendEmailAsync(Guid bookingId);
+    Task<DataResult> CancelAsync(Guid bookingId, Guid actorId, CancelBookingDto dto);
 }
 
 public class BookingService : IBookingService
@@ -94,6 +96,28 @@ public class BookingService : IBookingService
         }
     }
 
+    public async Task<DataResult> GetByOwnerAsync(Guid ownerId, BookingListInput input)
+    {
+        try
+        {
+            var query = _uow.Bookings.Query()
+                .Include(b => b.Renter)
+                .Include(b => b.Car)
+                .Include(b => b.Transactions)
+                .Where(b => b.Car.OwnerId == ownerId)
+                .OrderByDescending(b => b.CreatedAt);
+            var totalCount = await query.CountAsync();
+            var items = await query.Skip(input.SkipCount).Take(input.MaxResultCount)
+                .ProjectTo<BookingDto>(_mapper.ConfigurationProvider).ToListAsync();
+            return DataResult.ResultSuccess(items, "Get success!", totalCount);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Failed to get bookings by owner {OwnerId}", ownerId);
+            throw;
+        }
+    }
+
     public async Task<DataResult> GetByCarAsync(Guid carId, BookingListInput input)
     {
         try
@@ -113,8 +137,16 @@ public class BookingService : IBookingService
 
     public async Task<DataResult> CreateAsync(Guid renterId, CreateBookingDto dto)
     {
+        await _uow.BeginTransactionAsync();
         try
         {
+            // Guard: renter must have approved KYC before booking
+            var renter = await _uow.Users.GetByIdAsync(renterId)
+                ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Renter not found!");
+            if (renter.KycStatus != Enums.KycStatus.Approved)
+                throw new UserFriendlyException((int)HttpStatusCode.Forbidden,
+                    "Bạn cần hoàn thành xác minh danh tính (KYC) trước khi thuê xe.");
+
             // Acquire per-car advisory lock — held until transaction ends, works across distributed nodes
             var carLockId = BitConverter.ToInt64(dto.CarId.ToByteArray(), 0);
             await _uow.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({carLockId})");
@@ -185,12 +217,14 @@ public class BookingService : IBookingService
             await _uow.CarAvailabilityBlocks.AddAsync(block);
             block.BookingId = entity.Id;
 
+
             var created = await GetEntityByIdAsync(entity.Id)
                 ?? throw new UserFriendlyException((int)HttpStatusCode.InternalServerError, "Create booking failed.");
             return DataResult.ResultSuccess(_mapper.Map<BookingDto>(created), "Insert success!", statusCode: 201);
         }
         catch (Exception e)
         {
+            await _uow.RollbackTransactionAsync();
             if (e is not UserFriendlyException)
                 _logger.LogError(e, "Failed to create booking");
             throw;
@@ -444,6 +478,73 @@ public class BookingService : IBookingService
             .Include(b => b.Car)
             .Include(b => b.Transactions)
             .FirstOrDefaultAsync(b => b.Id == id);
+    }
+
+    public async Task<DataResult> CancelAsync(Guid bookingId, Guid actorId, CancelBookingDto dto)
+    {
+        await _uow.BeginTransactionAsync();
+        try
+        {
+            var booking = await GetEntityByIdAsync(bookingId)
+                ?? throw new UserFriendlyException((int)HttpStatusCode.NotFound, "Booking not found!");
+
+            if (booking.Status != BookingStatus.Pending && booking.Status != BookingStatus.Confirmed)
+                throw new UserFriendlyException((int)HttpStatusCode.Conflict,
+                    $"Chỉ có thể huỷ booking ở trạng thái Pending/Confirmed. Hiện tại: {booking.Status}");
+
+            booking.Status = BookingStatus.Cancelled;
+            booking.CancelReason = dto.CancelReason;
+            booking.UpdatedAt = DateTime.UtcNow;
+
+            // Remove availability block for this booking
+            var block = await _uow.CarAvailabilityBlocks.Query()
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+            if (block != null)
+                _uow.CarAvailabilityBlocks.Remove(block);
+
+            // Auto-refund deposit if it was charged
+            var depositCharge = booking.Transactions.FirstOrDefault(t =>
+                t.Note == "deposit" &&
+                t.Direction == Enums.PaymentDirection.Charge &&
+                t.Status == Enums.PaymentStatus.Success);
+
+            if (depositCharge != null)
+            {
+                var alreadyRefunded = booking.Transactions.Any(t =>
+                    t.Note != null && t.Note.StartsWith("deposit_refund") &&
+                    t.Direction == Enums.PaymentDirection.Refund &&
+                    t.Status == Enums.PaymentStatus.Success);
+
+                if (!alreadyRefunded)
+                {
+                    var now = DateTime.UtcNow;
+                    var refundTx = new Transaction
+                    {
+                        BookingId = bookingId,
+                        PayerId = actorId,
+                        AmountVnd = depositCharge.AmountVnd,
+                        Direction = Enums.PaymentDirection.Refund,
+                        Method = Enums.PaymentMethod.BankTransfer,
+                        Status = Enums.PaymentStatus.Success,
+                        Note = "deposit_refund: huỷ booking",
+                        PaidAt = now,
+                        CreatedAt = now
+                    };
+                    await _uow.Transactions.AddAsync(refundTx);
+                }
+            }
+
+
+            var updated = await GetEntityByIdAsync(bookingId);
+            return DataResult.ResultSuccess(_mapper.Map<BookingDto>(updated), "Huỷ booking thành công!");
+        }
+        catch (Exception e)
+        {
+            await _uow.RollbackTransactionAsync();
+            if (e is not UserFriendlyException)
+                _logger.LogError(e, "Failed to cancel booking {BookingId}", bookingId);
+            throw;
+        }
     }
 
 }

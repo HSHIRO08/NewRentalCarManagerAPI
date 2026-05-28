@@ -13,7 +13,7 @@ public class JwtTokenService : ITokenService
 
     public JwtTokenService(IConfiguration config) => _config = config;
 
-    public string GenerateAccessToken(Guid userId, string role)
+    public string GenerateAccessToken(Guid userId, string role, int tenantId)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -22,7 +22,8 @@ public class JwtTokenService : ITokenService
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(ClaimTypes.Role, role),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("tenantId", tenantId.ToString())
         };
 
         var token = new JwtSecurityToken(

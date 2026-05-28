@@ -26,6 +26,7 @@ public interface IUnitOfWork : IDisposable
     IRepository<ApiKey> ApiKeys { get; }
     IRepository<NotificationLog> NotificationLogs { get; }
     IRepository<NewsArticle> NewsArticles { get; }
+    IRepository<HandoverRecord> HandoverRecords { get; }
     Task<int> SaveChangesAsync();
     Task BeginTransactionAsync();
     Task CommitTransactionAsync();
